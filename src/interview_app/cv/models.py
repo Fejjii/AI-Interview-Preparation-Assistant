@@ -39,7 +39,9 @@ class InterviewQuestionItem(BaseModel):
     )
     difficulty: str
     why_this_question: str = Field(default="", description="Why this fits the candidate's CV.")
-    suggested_answer: str = Field(default="", description="Concise STAR-style or technical answer outline.")
+    suggested_answer: str = Field(
+        default="", description="Concise STAR-style or technical answer outline."
+    )
     follow_up_questions: list[str] = Field(default_factory=list)
 
 
@@ -105,7 +107,9 @@ class PracticeAnswerEvaluationItem(BaseModel):
 
     question: str
     user_answer: str
-    feedback: str = Field(default="", description="Interview-oriented feedback grounded in CV context.")
+    feedback: str = Field(
+        default="", description="Interview-oriented feedback grounded in CV context."
+    )
     strengths: list[str] = Field(default_factory=list)
     gaps: list[str] = Field(default_factory=list, description="What is missing or weak.")
     improved_answer_suggestion: str = Field(

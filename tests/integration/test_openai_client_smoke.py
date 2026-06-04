@@ -29,4 +29,3 @@ def test_llm_client_generate_response_smoke() -> None:
         temperature=0.0,
     )
     assert resp.text
-

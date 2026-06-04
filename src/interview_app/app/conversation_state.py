@@ -81,7 +81,9 @@ def clear_messages() -> None:
     clear_mock_interview_runtime_state(st.session_state)
 
 
-def snapshot_meta_from_settings(settings: UISettings, session_id: str | None, title: str = "") -> SessionMeta:
+def snapshot_meta_from_settings(
+    settings: UISettings, session_id: str | None, title: str = ""
+) -> SessionMeta:
     """Build SessionMeta from current UISettings for saving a session."""
     from datetime import datetime
 

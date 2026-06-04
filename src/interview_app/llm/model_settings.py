@@ -53,10 +53,16 @@ MODEL_PRESET_SIDEBAR_OPTIONS: tuple[tuple[str, ModelPresetKey], ...] = (
 
 MODEL_PRESETS: dict[ModelPresetKey, ModelConfig] = {
     "gpt-4.1": ModelConfig(name="gpt-4.1", default_temperature=0.2, default_max_tokens=1400),
-    "gpt-4.1-mini": ModelConfig(name="gpt-4.1-mini", default_temperature=0.2, default_max_tokens=1200),
-    "gpt-4.1-nano": ModelConfig(name="gpt-4.1-nano", default_temperature=0.2, default_max_tokens=1000),
+    "gpt-4.1-mini": ModelConfig(
+        name="gpt-4.1-mini", default_temperature=0.2, default_max_tokens=1200
+    ),
+    "gpt-4.1-nano": ModelConfig(
+        name="gpt-4.1-nano", default_temperature=0.2, default_max_tokens=1000
+    ),
     "gpt-4o": ModelConfig(name="gpt-4o", default_temperature=0.2, default_max_tokens=1200),
-    "gpt-4o-mini": ModelConfig(name="gpt-4o-mini", default_temperature=0.2, default_max_tokens=1000),
+    "gpt-4o-mini": ModelConfig(
+        name="gpt-4o-mini", default_temperature=0.2, default_max_tokens=1000
+    ),
 }
 
 

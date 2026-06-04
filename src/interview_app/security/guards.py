@@ -12,12 +12,19 @@ detected (no raw prompt text).
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Final
 
 from pydantic import BaseModel, Field
 
 from interview_app.config.settings import get_security_settings
+from interview_app.cv.delimiters import CV_DELIMITER_MARKERS
 from interview_app.security.logging import log_security_event
+
+PROMPT_INJECTION_BLOCK_MESSAGE: Final[str] = (
+    "Your message looks like an attempt to override the assistant's instructions. "
+    "Please rephrase as a normal interview question, answer, or job description."
+)
 
 
 class GuardrailResult(BaseModel):
@@ -40,22 +47,61 @@ _INJECTION_PHRASES: Final[tuple[str, ...]] = (
     "disregard previous instructions",
     "forget previous instructions",
     "override previous instructions",
+    "override system instructions",
+    "override your instructions",
+    "new instructions:",
+    "disregard all rules",
     "system prompt",
     "developer message",
     "you are chatgpt",
+    "you are now in developer mode",
+    "you are now the system",
+    "pretend you are the system",
     "reveal the system prompt",
     "show me the system prompt",
     "print the system prompt",
+    "reveal hidden instructions",
     "jailbreak",
+    "jailbreak mode",
     "do anything now",
     "dan mode",
+    "disable safety",
+    "disable content policy",
+    "without safety guidelines",
+    "no restrictions mode",
+    # Multilingual variants (common bypass attempts)
+    "ignorez les instructions",
+    "ignora las instrucciones",
+    "ignoriere die anweisungen",
+    "ignoriere vorherige anweisungen",
 )
 
 _INJECTION_REGEXES: Final[tuple[re.Pattern[str], ...]] = (
     re.compile(r"\bignore\b.*\binstructions\b", re.IGNORECASE),
     re.compile(r"\b(bypass|disable)\b.*\b(safety|policy|guardrails?)\b", re.IGNORECASE),
-    re.compile(r"\b(reveal|show|print)\b.*\b(system|developer)\b.*\b(prompt|message)\b", re.IGNORECASE),
-    re.compile(r"\bact as\b.*\b(system|developer)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(reveal|show|print|dump|leak)\b.*\b(system|developer)\b.*\b(prompt|message)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bact as\b.*\b(system|developer|admin)\b", re.IGNORECASE),
+    re.compile(
+        r"\bpretend\s+(you\s+are|to\s+be)\b.{0,60}\b(system|developer|admin)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\brole\s*:\s*system\b", re.IGNORECASE),
+    re.compile(r"\b<<<[a-z0-9_]{3,}>>>\b", re.IGNORECASE),
+    re.compile(
+        r"\b(call|invoke|execute)\b.{0,40}\b(tool|function)\b.{0,40}\b(ignore|override)\b",
+        re.IGNORECASE,
+    ),
+)
+
+_ZERO_WIDTH_CHARS: Final[tuple[str, ...]] = (
+    "\u200b",
+    "\u200c",
+    "\u200d",
+    "\ufeff",
+    "\u00ad",
 )
 
 # Extra phrases / patterns when SECURITY_PROMPT_INJECTION_STRICT=true (or strict=True).
@@ -70,7 +116,9 @@ _STRICT_INJECTION_PHRASES: Final[tuple[str, ...]] = (
 )
 
 _STRICT_INJECTION_REGEXES: Final[tuple[re.Pattern[str], ...]] = (
-    re.compile(r"\b(leak|extract|dump|exfiltrate)\b.{0,80}\b(prompt|instructions?|policy)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(leak|extract|dump|exfiltrate)\b.{0,80}\b(prompt|instructions?|policy)\b", re.IGNORECASE
+    ),
     re.compile(r"\b(base64|hex)\b.{0,40}\b(decode|instruction)\b", re.IGNORECASE),
     re.compile(r"\b(end\s*of\s*system|start\s*of\s*user)\b", re.IGNORECASE),
 )
@@ -116,12 +164,29 @@ def validate_user_input(text: str, *, max_chars: int = _DEFAULT_MAX_CHARS) -> st
     return cleaned
 
 
+def normalize_text_for_injection_probe(text: str) -> str:
+    """Normalize text before heuristic injection checks (NFKC, strip zero-width chars)."""
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFKC", text)
+    for ch in _ZERO_WIDTH_CHARS:
+        normalized = normalized.replace(ch, "")
+    return normalized
+
+
+def _contains_cv_delimiter_breakout(lowered: str) -> bool:
+    return any(marker in lowered for marker in CV_DELIMITER_MARKERS)
+
+
 def detect_prompt_injection(text: str, *, strict: bool | None = None) -> bool:
     """
     Naive heuristic prompt-injection detection.
 
     When ``strict`` is None, uses ``SecuritySettings.prompt_injection_strict``.
     Strict mode adds extra phrases and regexes (more false positives possible).
+
+    Heuristic checks can be bypassed by novel attacks; see ``docs/security.md``.
+    Optional LLM classification is reserved for ``prompt_injection_classifier_enabled``.
     """
     if not text:
         return False
@@ -129,7 +194,12 @@ def detect_prompt_injection(text: str, *, strict: bool | None = None) -> bool:
     if strict is None:
         strict = get_security_settings().prompt_injection_strict
 
-    lowered = text.lower()
+    probe = normalize_text_for_injection_probe(text)
+    lowered = probe.lower()
+
+    if _contains_cv_delimiter_breakout(lowered):
+        return True
+
     phrases: tuple[str, ...] = _INJECTION_PHRASES
     if strict:
         phrases = _INJECTION_PHRASES + _STRICT_INJECTION_PHRASES
@@ -141,7 +211,7 @@ def detect_prompt_injection(text: str, *, strict: bool | None = None) -> bool:
     if strict:
         regexes = _INJECTION_REGEXES + _STRICT_INJECTION_REGEXES
 
-    return any(rx.search(text) is not None for rx in regexes)
+    return any(rx.search(probe) is not None for rx in regexes)
 
 
 def sanitize_user_input(text: str) -> str:
@@ -240,7 +310,7 @@ def run_guardrails(
     return GuardrailResult(
         ok=not injection,
         cleaned_text=sanitized,
-        reason="Prompt injection suspected." if injection else None,
+        reason=PROMPT_INJECTION_BLOCK_MESSAGE if injection else None,
         flags=flags,
         injection_detected=injection,
         truncated=truncated,

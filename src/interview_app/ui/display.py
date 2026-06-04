@@ -13,15 +13,24 @@ from typing import Any
 import streamlit as st
 
 from interview_app.app.ui_settings import UISettings
-from interview_app.llm.model_settings import resolve_openai_model_id, sidebar_label_for_preset
 from interview_app.cv.models import (
     CVAnalysisBundle,
     CVPracticeBundle,
     CVPracticeEvaluationBatch,
 )
+from interview_app.llm.model_settings import resolve_openai_model_id, sidebar_label_for_preset
 from interview_app.security.guards import GuardrailResult
 from interview_app.utils.interview_question_output import try_parse_questions_json
 from interview_app.utils.types import EvaluationResult, LLMResponse
+from interview_app.utils.usage_formatting import format_usage_summary
+
+
+def _render_usage_caption(response: LLMResponse) -> None:
+    """Compact usage line under LLM output (tokens, latency, optional estimate)."""
+    summary = format_usage_summary(response)
+    if summary:
+        with st.expander("Usage", expanded=False):
+            st.caption(summary)
 
 
 def show_generated_questions_output(
@@ -35,9 +44,7 @@ def show_generated_questions_output(
     Splits numbered lists into a highlighted first item when possible.
     """
     st.subheader(title)
-    st.caption(
-        f"{settings.role_category} · {settings.interview_focus} · {settings.persona}"
-    )
+    st.caption(f"{settings.role_category} · {settings.interview_focus} · {settings.persona}")
 
     text = (response.text or "").strip()
     parsed = try_parse_questions_json(text)
@@ -93,14 +100,16 @@ def show_generated_questions_output(
         "Ask for a hint if you get stuck—real interviews allow clarification."
     )
 
+    _render_usage_caption(response)
+
     with st.expander("Response metadata", expanded=False):
         st.code(
             json.dumps(
                 {
                     "model": response.model,
-                    "usage": (
-                        response.usage.model_dump() if response.usage else None
-                    ),
+                    "provider": response.provider,
+                    "latency_ms": response.latency_ms,
+                    "usage": (response.usage.model_dump() if response.usage else None),
                     "raw_response_id": response.raw_response_id,
                 },
                 indent=2,
@@ -191,9 +200,7 @@ def show_llm_response(
     interview output layout (used for question generation).
     """
     if structured and settings is not None:
-        show_generated_questions_output(
-            settings=settings, response=response, title=title
-        )
+        show_generated_questions_output(settings=settings, response=response, title=title)
         return
 
     st.success(f"**{title}**")
@@ -202,14 +209,16 @@ def show_llm_response(
     else:
         st.warning("No text returned by the model.")
 
+    _render_usage_caption(response)
+
     with st.expander("Response metadata", expanded=False):
         st.code(
             json.dumps(
                 {
                     "model": response.model,
-                    "usage": (
-                        response.usage.model_dump() if response.usage else None
-                    ),
+                    "provider": response.provider,
+                    "latency_ms": response.latency_ms,
+                    "usage": (response.usage.model_dump() if response.usage else None),
                     "raw_response_id": response.raw_response_id,
                 },
                 indent=2,
@@ -274,9 +283,15 @@ def show_evaluation(
             st.markdown(f"{i}. {q}")
 
 
-def show_evaluation_result(evaluation: EvaluationResult) -> None:
+def show_evaluation_result(
+    evaluation: EvaluationResult,
+    *,
+    llm_response: LLMResponse | None = None,
+) -> None:
     """Render an EvaluationResult model with dashboard-style metrics."""
     show_evaluation_dashboard(evaluation)
+    if llm_response is not None:
+        _render_usage_caption(llm_response)
 
 
 def show_cv_practice_bundle(*, bundle: CVPracticeBundle) -> None:
@@ -412,9 +427,7 @@ def show_prompt_debug(
         st.code(user_prompt, language="markdown")
 
 
-def show_settings_debug(
-    *, settings: UISettings, extra: dict[str, Any] | None = None
-) -> None:
+def show_settings_debug(*, settings: UISettings, extra: dict[str, Any] | None = None) -> None:
     """Show a compact snapshot of current UI settings (opt-in debug)."""
     payload: dict[str, Any] = {
         "role_category": settings.role_category,

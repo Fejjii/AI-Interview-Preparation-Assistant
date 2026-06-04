@@ -19,8 +19,10 @@ Guidelines for running, extending, and maintaining the Interview App locally.
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
+
+Runtime-only install (matches Streamlit Community Cloud): `pip install -r requirements.txt`
 
 ### Run the app
 
@@ -35,19 +37,31 @@ Or with Make (Unix/Git Bash): `make run`.
 ```powershell
 pytest
 pytest tests\unit -v
+pytest tests\evaluations -v
 ```
 
-See [testing.md](testing.md) for integration tests and manual guardrail checks.
+See [testing.md](testing.md) for integration tests, evaluations, and manual guardrail checks.
 
 ### Lint, format, typecheck
 
 ```powershell
-ruff check src tests
-black src tests
+ruff check src tests evaluations
+black --check src tests evaluations
 mypy src
 ```
 
 Or: `make lint`, `make format`, `make typecheck`.
+
+### CI (GitHub Actions)
+
+On every push and pull request, [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs:
+
+- `pytest` (OpenAI smoke test skips without `OPENAI_API_KEY`)
+- `pytest tests/evaluations -v`
+- `ruff check src tests evaluations`
+- `black --check src tests evaluations`
+
+No repository secrets are required for CI.
 
 ---
 
@@ -82,6 +96,7 @@ Or: `make lint`, `make format`, `make typecheck`.
 
 - **Prompt debug:** When enabled in the sidebar, some flows show system/user prompts in the UI (never logged by default in structured audit entries).
 - **Guardrail expanders:** The UI can show structured guardrail summaries for failed or flagged requests.
+- **Diagnostics panel:** Sidebar expander **Diagnostics** (collapsed by default) shows environment, model preset, usage mode, whether a server `OPENAI_API_KEY` is configured (yes/no only), sessions directory path, security toggles, and evaluation commands. It never displays secret values or makes network calls.
 - **Session files:** Inspect JSON under `data/sessions/` (or your `SESSIONS_DIR`) for saved transcripts.
 
 ---

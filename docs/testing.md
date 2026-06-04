@@ -41,6 +41,17 @@ pytest tests\unit\test_pipeline.py -v
 
 Tests under `tests/integration/` typically require **`OPENAI_API_KEY`** in the environment; they may skip or fail without it. Set the key the same way as for the app (e.g. in `.env`).
 
+### Deterministic evaluations (no API key)
+
+Fixture-driven task-level checks live under `tests/evaluations/` (see [evaluations/README.md](../evaluations/README.md)):
+
+```powershell
+pytest tests/evaluations -v
+python evaluations/run_evaluations.py
+```
+
+These reuse production parsers and classifiers with mocked LLM output only.
+
 ---
 
 ## What unit tests cover (examples)
@@ -109,10 +120,14 @@ Use ordinary interview question and answer text.
 
 ---
 
-## Lint / format / typecheck (optional CI parity)
+## Lint / format / typecheck (CI parity)
+
+Matches [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 ```powershell
-ruff check src tests
-black src tests
+ruff check src tests evaluations
+black --check src tests evaluations
 mypy src
 ```
+
+GitHub Actions also runs `pytest` and `pytest tests/evaluations -v` on each push and pull request (no secrets required).

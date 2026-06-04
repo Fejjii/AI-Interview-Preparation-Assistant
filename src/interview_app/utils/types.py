@@ -27,6 +27,14 @@ class LLMResponse(BaseModel):
     model: str | None = None
     usage: LLMUsage | None = None
     raw_response_id: str | None = None
+    latency_ms: float | None = Field(
+        default=None,
+        description="Round-trip latency for the completion request in milliseconds.",
+    )
+    provider: str | None = Field(
+        default="openai",
+        description="LLM provider label for UI display.",
+    )
 
 
 class ChatMessage(BaseModel):
@@ -82,4 +90,3 @@ class SessionMeta(BaseModel):
         if not out.get("interview_focus") and out.get("interview_type"):
             out["interview_focus"] = out["interview_type"]
         return out
-

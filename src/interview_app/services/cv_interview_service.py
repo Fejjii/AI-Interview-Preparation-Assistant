@@ -252,7 +252,9 @@ def run_cv_interview_pipeline(
 
     nq = max(1, min(20, int(n_questions)))
 
-    extraction: CVStructuredExtraction | None = cached_extraction if regenerate_questions_only else None
+    extraction: CVStructuredExtraction | None = (
+        cached_extraction if regenerate_questions_only else None
+    )
 
     if not regenerate_questions_only:
         if not filename or file_bytes is None:

@@ -7,6 +7,23 @@ This doc describes how to run the AI Interview Coach app in production using Doc
 - Docker (and optionally a container registry: Docker Hub, ECR, ACR, GCR).
 - An OpenAI API key (and optionally a Snowflake account for data/analytics).
 
+## Streamlit Community Cloud
+
+For the managed Streamlit hosting flow (entrypoint `streamlit_app.py`, secrets, smoke test), see **[STREAMLIT_CLOUD.md](STREAMLIT_CLOUD.md)**.
+
+## Pre-deploy verification (CI parity)
+
+Before shipping, run locally (or rely on GitHub Actions `.github/workflows/ci.yml`):
+
+```bash
+pytest
+pytest tests/evaluations -v
+ruff check src tests evaluations
+black --check src tests evaluations
+```
+
+No API key is required for CI: the OpenAI integration smoke test skips when `OPENAI_API_KEY` is unset. After deploy, open the sidebar **Diagnostics** expander to confirm environment, model preset, usage mode, and security toggles (no secret values are shown).
+
 ## 1. Docker
 
 ### Build
@@ -90,23 +107,6 @@ In all cases, use the provider’s secret manager for `OPENAI_API_KEY` instead o
 | Use Snowflake for data/UI   | Use Streamlit in Snowflake (SiS) and adapt app |
 | Use Snowflake for analytics only | Run app on cloud; sync or log to Snowflake via connector/SQL API |
 
-## 4. Example Dockerfile
+## 4. Dockerfile
 
-Ensure the project has a `Dockerfile` at the repo root. Example:
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-ENV PYTHONPATH=/app/src
-
-EXPOSE 8501
-CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-```
-
-Then build and run as in section 1.
+The repo includes a production-oriented `Dockerfile` at the root (non-root user, `pip install .` from `pyproject.toml`, health check). Build and run as in section 1.

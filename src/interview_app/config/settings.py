@@ -45,6 +45,13 @@ class SecuritySettings(BaseSettings):
         default=False,
         description="When True, use stricter (more false-positives) injection detection.",
     )
+    prompt_injection_classifier_enabled: bool = Field(
+        default=False,
+        description=(
+            "Reserved for a future optional LLM-based injection classifier. "
+            "When False (default), only heuristic detection runs."
+        ),
+    )
     cv_max_file_bytes: int = Field(
         default=5 * 1024 * 1024,
         description="Maximum upload size for CV files (PDF/DOCX).",
@@ -87,6 +94,15 @@ class Settings(BaseSettings):
     openai_temperature: float = Field(
         default=0.2, ge=0.0, le=2.0, description="Default sampling temperature."
     )
+    openai_max_retries: int = Field(
+        default=3,
+        ge=0,
+        le=10,
+        description=(
+            "Max retries for transient OpenAI API failures (429, 5xx, timeouts). "
+            "Uses the OpenAI SDK built-in exponential backoff with jitter."
+        ),
+    )
     sessions_dir: str = Field(
         default="data/sessions",
         description="Directory for lightweight session JSON files (relative to cwd or absolute).",
@@ -109,4 +125,3 @@ def get_settings() -> Settings:
 def get_security_settings() -> SecuritySettings:
     """Shortcut to access the security sub-config."""
     return get_settings().security
-

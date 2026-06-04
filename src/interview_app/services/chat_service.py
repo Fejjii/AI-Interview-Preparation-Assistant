@@ -64,7 +64,8 @@ from interview_app.services.mock_interview_flow import (
 )
 from interview_app.utils.errors import safe_user_message
 from interview_app.utils.interview_question_output import first_question_text_from_output
-from interview_app.utils.types import ChatMessage, EvaluationResult
+from interview_app.utils.types import ChatMessage, EvaluationResult, LLMResponse
+from interview_app.utils.usage_formatting import format_usage_summary
 
 _logger = logging.getLogger(__name__)
 
@@ -111,6 +112,13 @@ class ChatTurnResult:
     assistant_message: str
     evaluation: EvaluationResult | None = None
     llm_debug: LlmTurnDebug | None = None
+    usage_summary: str | None = None
+
+
+def _usage_summary_from_response(resp: LLMResponse | None) -> str | None:
+    if resp is None:
+        return None
+    return format_usage_summary(resp)
 
 
 def run_turn(
@@ -426,7 +434,12 @@ def _generate_next_question_turn(
         active_question_type or "standard",
         bool(ctx_suffix),
     )
-    return ChatTurnResult(assistant_message=display, evaluation=None, llm_debug=q_debug)
+    return ChatTurnResult(
+        assistant_message=display,
+        evaluation=None,
+        llm_debug=q_debug,
+        usage_summary=_usage_summary_from_response(result.response),
+    )
 
 
 def _greeting_and_first_question(
@@ -484,9 +497,8 @@ def _contextual_question_request_turn(
     """User asked for a question tied to their prior story; never re-prompts for config that exists."""
     ctx = get_session_interview_context(session_state)
     preview = ", ".join(flatten_interview_topics(ctx, max_items=10))
-    lead = (
-        "Here’s the next question, grounded in what you’ve shared so far"
-        + (f": {preview}." if preview else " — let’s go deeper on your recent work.")
+    lead = "Here’s the next question, grounded in what you’ve shared so far" + (
+        f": {preview}." if preview else " — let’s go deeper on your recent work."
     )
     focus = effective.interview_focus
     if interview_topics_non_empty(ctx) and focus == "Behavioral / Soft Skills":
@@ -508,7 +520,15 @@ def _looks_like_job_context(text: str) -> bool:
     t = (text or "").strip().lower()
     if len(t.split()) < 8:
         return False
-    cues = ("job description", "role:", "position:", "responsibilities", "requirements", "hiring", "company")
+    cues = (
+        "job description",
+        "role:",
+        "position:",
+        "responsibilities",
+        "requirements",
+        "hiring",
+        "company",
+    )
     return any(c in t for c in cues)
 
 
@@ -607,21 +627,27 @@ def _interviewer_clarification_or_meta_turn(
                 f"**Question:** {pending_question}",
                 evaluation=None,
                 llm_debug=meta_dbg,
+                usage_summary=_usage_summary_from_response(resp),
             )
         body = (out.text or "").strip()
         suffix = f"\n\n**Question:** {pending_question}"
+        usage = _usage_summary_from_response(resp)
         if pending_question and pending_question not in body:
             return ChatTurnResult(
-                assistant_message=f"{body}{suffix}", evaluation=None, llm_debug=meta_dbg
+                assistant_message=f"{body}{suffix}",
+                evaluation=None,
+                llm_debug=meta_dbg,
+                usage_summary=usage,
             )
         return ChatTurnResult(
-            assistant_message=body or suffix.strip(), evaluation=None, llm_debug=meta_dbg
+            assistant_message=body or suffix.strip(),
+            evaluation=None,
+            llm_debug=meta_dbg,
+            usage_summary=usage,
         )
     except Exception as exc:
         return ChatTurnResult(
-            assistant_message=(
-                f"{safe_user_message(exc)}\n\n**Question:** {pending_question}"
-            ),
+            assistant_message=(f"{safe_user_message(exc)}\n\n**Question:** {pending_question}"),
             evaluation=None,
         )
 
@@ -671,7 +697,11 @@ def _answer_general_question(
         text = (out.text or "").strip() or (
             "I’m here to help. When you’re ready, say you’re ready to continue the mock interview."
         )
-        return ChatTurnResult(assistant_message=text, evaluation=None)
+        return ChatTurnResult(
+            assistant_message=text,
+            evaluation=None,
+            usage_summary=_usage_summary_from_response(resp),
+        )
     except Exception as exc:
         return ChatTurnResult(
             assistant_message=f"{safe_user_message(exc)} You can continue when you’re ready.",
@@ -785,14 +815,20 @@ def _evaluate_and_follow_up(
         )
 
     next_pending = (
-        (ev.next_follow_up_question or (ev.follow_ups[0] if ev.follow_ups else "") or "").strip() or None
-    )
+        ev.next_follow_up_question or (ev.follow_ups[0] if ev.follow_ups else "") or ""
+    ).strip() or None
 
     set_mock_state(
         session_state,
         pending_question=next_pending,
-        phase=MockInterviewPhase.AWAITING_ANSWER if next_pending else MockInterviewPhase.FEEDBACK_GIVEN,
-        interview_state=InterviewState.WAITING_FOR_ANSWER if next_pending else InterviewState.GREETING,
+        phase=(
+            MockInterviewPhase.AWAITING_ANSWER
+            if next_pending
+            else MockInterviewPhase.FEEDBACK_GIVEN
+        ),
+        interview_state=(
+            InterviewState.WAITING_FOR_ANSWER if next_pending else InterviewState.GREETING
+        ),
     )
 
     if next_pending and session_state is not None:
@@ -810,4 +846,5 @@ def _evaluate_and_follow_up(
         assistant_message=_format_evaluation_markdown(ev),
         evaluation=ev,
         llm_debug=eval_dbg,
+        usage_summary=_usage_summary_from_response(eval_result.response),
     )

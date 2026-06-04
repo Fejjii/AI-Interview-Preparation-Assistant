@@ -20,6 +20,12 @@ For internet-facing multi-user products, add an **authenticated backend**, serve
 - Non-empty checks and maximum length.
 - **Secret redaction** heuristics for API-key-like strings, PEM blocks, and common token patterns (best-effort; not exhaustive).
 - **Prompt-injection heuristics:** phrase lists and regexes; optional **strict** mode for additional patterns (more false positives).
+- **Delimiter breakout:** CV fence tokens and generic `<<<...>>>` markers in user text are treated as suspicious.
+- **Normalization:** NFKC + zero-width character stripping before phrase/regex checks.
+
+**Known limitation:** Heuristic detection can still be bypassed by novel or heavily obfuscated attacks. It is not a substitute for server-side auth, quotas, and model-level safety in multi-tenant deployments. Blocked inputs return a single friendly message (`PROMPT_INJECTION_BLOCK_MESSAGE` in `guards.py`).
+
+**Future (optional):** `SECURITY_PROMPT_INJECTION_CLASSIFIER_ENABLED` is reserved for a configurable LLM-based classifier. It defaults to **false** and is **not** wired to OpenAI in the current app.
 
 ### 2. Pre-LLM pipeline (`security/pipeline.py`)
 
@@ -61,6 +67,7 @@ All use the `SECURITY_` prefix (see `SecuritySettings` in `config/settings.py`):
 | `SECURITY_RATE_LIMIT_WINDOW_SECONDS` | Sliding window for rate limit. |
 | `SECURITY_MODERATION_ENABLED` | Toggle lightweight moderation step. |
 | `SECURITY_PROMPT_INJECTION_STRICT` | Stricter injection detection (more false positives). |
+| `SECURITY_PROMPT_INJECTION_CLASSIFIER_ENABLED` | Reserved; default `false` (heuristics only today). |
 | `SECURITY_CV_MAX_FILE_BYTES` | Max upload size for CV files. |
 | `SECURITY_CV_MAX_TEXT_CHARS` | Max extracted CV text sent to guardrails/LLM. |
 

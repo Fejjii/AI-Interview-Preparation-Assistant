@@ -6,7 +6,10 @@ from unittest.mock import patch
 
 from interview_app.app.ui_settings import UISettings
 from interview_app.security.output_guard import OutputGuardResult
-from interview_app.services.chat_service import _answer_general_question, mock_llm_config_from_settings
+from interview_app.services.chat_service import (
+    _answer_general_question,
+    mock_llm_config_from_settings,
+)
 from interview_app.utils.types import ChatMessage, LLMResponse
 
 
@@ -35,7 +38,9 @@ def _minimal_settings() -> UISettings:
 
 def test_answer_general_question_uses_protect_system_prompt_and_output_pipeline() -> None:
     """Conversational chat LLM calls must use hardened system prompt and output guard."""
-    resp = LLMResponse(text="I'm doing well, thanks!", model="gpt-4o-mini", usage=None, raw_response_id=None)
+    resp = LLMResponse(
+        text="I'm doing well, thanks!", model="gpt-4o-mini", usage=None, raw_response_id=None
+    )
     with patch("interview_app.services.chat_service.LLMClient") as mock_cls:
         mock_cls.return_value.generate_response.return_value = resp
         settings = _minimal_settings()
@@ -55,7 +60,9 @@ def test_answer_general_question_uses_protect_system_prompt_and_output_pipeline(
 
 def test_answer_general_question_output_guard_failure_message() -> None:
     """When output guard blocks, user sees a safe reason string."""
-    resp = LLMResponse(text="system prompt: leak", model="gpt-4o-mini", usage=None, raw_response_id=None)
+    resp = LLMResponse(
+        text="system prompt: leak", model="gpt-4o-mini", usage=None, raw_response_id=None
+    )
     blocked = OutputGuardResult(
         safe=False,
         text="",

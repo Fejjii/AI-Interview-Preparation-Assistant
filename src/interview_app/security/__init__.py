@@ -31,4 +31,3 @@ __all__ = [
     "validate_output",
     "validate_user_input",
 ]
-

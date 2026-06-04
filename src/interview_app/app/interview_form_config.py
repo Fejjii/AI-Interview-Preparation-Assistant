@@ -125,9 +125,7 @@ ROLE_TITLE_PLACEHOLDERS: dict[str, str] = {
 
 def role_title_placeholder(role_category: str) -> str:
     """Dynamic placeholder for the role title field."""
-    return ROLE_TITLE_PLACEHOLDERS.get(
-        role_category, ROLE_TITLE_PLACEHOLDERS["Other"]
-    )
+    return ROLE_TITLE_PLACEHOLDERS.get(role_category, ROLE_TITLE_PLACEHOLDERS["Other"])
 
 
 def default_focus_for_round(interview_round: str) -> str:
@@ -145,9 +143,7 @@ def default_focus_for_round(interview_round: str) -> str:
     return mapping.get(interview_round, "Behavioral / Soft Skills")
 
 
-def default_persona_for_round(
-    interview_round: str, *, persona_keys: tuple[str, ...]
-) -> str:
+def default_persona_for_round(interview_round: str, *, persona_keys: tuple[str, ...]) -> str:
     """Suggested interviewer persona for a given round."""
     mapping: dict[str, str] = {
         "Recruiter Screen": "HR Recruiter",

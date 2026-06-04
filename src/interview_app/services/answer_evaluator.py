@@ -238,6 +238,8 @@ def evaluate_answer(
         model=resp.model,
         usage=resp.usage,
         raw_response_id=resp.raw_response_id,
+        latency_ms=resp.latency_ms,
+        provider=resp.provider,
     )
 
     evaluation = None
@@ -322,10 +324,15 @@ def _evaluator_user_prompt(
     )
     topics_block = ""
     if candidate_topics:
-        topics_block = "\nCandidate topics mentioned (use for Next Follow-up Question):\n- " + "\n- ".join(
-            candidate_topics[:20]
+        topics_block = (
+            "\nCandidate topics mentioned (use for Next Follow-up Question):\n- "
+            + "\n- ".join(candidate_topics[:20])
         )
-    hints_block = f"\nFollow-up instruction:\n{evaluation_context_hints}\n" if evaluation_context_hints else ""
+    hints_block = (
+        f"\nFollow-up instruction:\n{evaluation_context_hints}\n"
+        if evaluation_context_hints
+        else ""
+    )
     return (
         f"Role category: {role_category}\n"
         f"Role title: {role_title}\n"
@@ -383,7 +390,9 @@ def _parse_evaluation_response(text: str) -> EvaluationResult | None:
     improvements = bullets(section("Improvements"))
     criteria_met = bullets(section("Criteria met")) or list(strengths)
     criteria_missing = (
-        bullets(section("Criteria missing / Gaps")) or bullets(section("Gaps")) or list(improvements)
+        bullets(section("Criteria missing / Gaps"))
+        or bullets(section("Gaps"))
+        or list(improvements)
     )
     critique = section("Critique")
     improved = section("Better / Model Answer") or section("Improved answer")
@@ -415,4 +424,3 @@ def _parse_evaluation_response(text: str) -> EvaluationResult | None:
         next_follow_up_question=next_fu,
         follow_ups=follow_ups,
     )
-

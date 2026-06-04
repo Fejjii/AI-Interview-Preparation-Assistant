@@ -48,9 +48,7 @@ def _render_applied_status(applied: str, hint: object) -> None:
     tail = key_tail_from_masked_hint(str(hint)) if hint else None
     meta = ""
     if tail:
-        meta = (
-            f'<div class="ia-usage-status-meta">Key ending in {html.escape(tail)}</div>'
-        )
+        meta = f'<div class="ia-usage-status-meta">Key ending in {html.escape(tail)}</div>'
     sb.markdown(
         '<div class="ia-usage-status-card ia-usage-status-byo" role="status">'
         '<div class="ia-usage-status-title">Personal API key active</div>'
@@ -116,7 +114,9 @@ def render_usage_mode_setup() -> None:
         want_byo = choice == _MODE_LABELS[1]
         next_mode = UsageMode.BYO if want_byo else UsageMode.DEMO
 
-        if session_has_ephemeral_work(st.session_state) and not st.session_state.get("ia_usage_ack_reset"):
+        if session_has_ephemeral_work(st.session_state) and not st.session_state.get(
+            "ia_usage_ack_reset"
+        ):
             sb.error("Confirm the checkbox above to discard current workspace data.")
         elif want_byo:
             raw = st.session_state.get("ia_byo_key_input")

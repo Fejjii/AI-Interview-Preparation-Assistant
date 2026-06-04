@@ -1,0 +1,47 @@
+{
+  "cases": [
+    {
+      "id": "clarification_before_answer",
+      "message": "Can you clarify if you want a high-level overview or implementation details?",
+      "pending_question": "How would you design a rate limiter for our public API?",
+      "expected_turn_kind": "clarification_question"
+    },
+    {
+      "id": "meta_how_long",
+      "message": "How long will this mock interview take?",
+      "pending_question": "Explain your approach to database indexing.",
+      "expected_turn_kind": "meta_instruction"
+    },
+    {
+      "id": "substantive_answer",
+      "message": "We chose cache-aside with Redis because reads dominated and we needed sub-millisecond p99 latency. The trade-off was consistency versus freshness; we invalidated on writes and monitored hit ratio in Grafana.",
+      "pending_question": "How would you scale read-heavy API traffic using Redis cache-aside?",
+      "expected_turn_kind": "interview_answer",
+      "expected_user_turn_type": "answer"
+    },
+    {
+      "id": "control_next_question",
+      "message": "Next question please",
+      "pending_question": "Describe a conflict you resolved on a team.",
+      "expected_turn_kind": "control_instruction"
+    },
+    {
+      "id": "control_repeat",
+      "message": "Repeat the question",
+      "pending_question": "What is your biggest technical achievement?",
+      "expected_turn_kind": "control_instruction"
+    },
+    {
+      "id": "start_without_pending",
+      "message": "Let's start the interview",
+      "pending_question": null,
+      "expected_turn_kind": "greeting_or_start"
+    },
+    {
+      "id": "stop_restart",
+      "message": "Reset the interview and start over",
+      "pending_question": "Tell me about yourself.",
+      "expected_turn_kind": "other"
+    }
+  ]
+}

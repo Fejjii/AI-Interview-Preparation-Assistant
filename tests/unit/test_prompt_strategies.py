@@ -8,7 +8,6 @@ Goal:
 - sanity-check that the structured-output strategy actually asks for JSON
 """
 
-from interview_app.prompts.prompt_templates import load_template_text
 from interview_app.prompts.prompt_strategies import (
     build_chain_of_thought_prompt,
     build_few_shot_prompt,
@@ -16,6 +15,7 @@ from interview_app.prompts.prompt_strategies import (
     build_structured_output_prompt,
     build_zero_shot_prompt,
 )
+from interview_app.prompts.prompt_templates import load_template_text
 
 
 def test_template_text_strips_file_comment_header() -> None:

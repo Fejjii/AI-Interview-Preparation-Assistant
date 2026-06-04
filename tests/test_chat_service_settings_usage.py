@@ -51,7 +51,9 @@ def test_generate_questions_receives_model_temperature_top_p_max_tokens_and_stra
 ) -> None:
     ok_question = GenerateQuestionsResult(
         ok=True,
-        response=LLMResponse(text="1. One question.", model="gpt-4o-mini", usage=None, raw_response_id=None),
+        response=LLMResponse(
+            text="1. One question.", model="gpt-4o-mini", usage=None, raw_response_id=None
+        ),
         error=None,
         guardrails={},
         prompt=None,

@@ -22,4 +22,3 @@ __all__ = [
     "load_template",
     "load_template_text",
 ]
-

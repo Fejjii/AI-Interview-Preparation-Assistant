@@ -359,7 +359,9 @@ def get_interview_state(session_state: MutableMapping[str, Any] | None) -> Inter
     return InterviewState.GREETING
 
 
-def set_interview_state(session_state: MutableMapping[str, Any] | None, state: InterviewState) -> None:
+def set_interview_state(
+    session_state: MutableMapping[str, Any] | None, state: InterviewState
+) -> None:
     if session_state is None:
         return
     session_state[KEY_INTERVIEW_STATE] = state.value
@@ -524,7 +526,10 @@ def _is_meta(t: str, original: str) -> bool:
     if any(p in t for p in _META_PHRASES):
         return True
     tnorm = _norm(original)
-    if any(p in tnorm for p in ("thank you", "thanks", "appreciate it")) and len(tnorm.split()) < 12:
+    if (
+        any(p in tnorm for p in ("thank you", "thanks", "appreciate it"))
+        and len(tnorm.split()) < 12
+    ):
         return True
     if tnorm in ("ok", "okay", "k", "sure", "got it", "sounds good", "understood"):
         return True
@@ -579,7 +584,11 @@ def _looks_like_experience_digression(t: str, original: str, pending: str | None
     if any(m in t for m in _EXPERIENCE_DIGRESSION_MARKERS):
         return True
     if "in my last role" in t or "in my previous role" in t:
-        if "?" not in original and len(original.split()) < 25 and not _looks_like_interview_answer(original):
+        if (
+            "?" not in original
+            and len(original.split()) < 25
+            and not _looks_like_interview_answer(original)
+        ):
             return True
     return False
 
@@ -894,7 +903,15 @@ def _looks_like_job_context(text: str) -> bool:
     t = (text or "").strip().lower()
     if len(t.split()) < 8:
         return False
-    cues = ("job description", "role:", "position:", "responsibilities", "requirements", "hiring", "company")
+    cues = (
+        "job description",
+        "role:",
+        "position:",
+        "responsibilities",
+        "requirements",
+        "hiring",
+        "company",
+    )
     return any(c in t for c in cues)
 
 
@@ -1068,6 +1085,8 @@ def sync_mock_interview_session_from_messages(
             interview_state=InterviewState.WAITING_FOR_ANSWER,
         )
 
-    from interview_app.services.context_manager import rebuild_session_interview_context_from_transcript
+    from interview_app.services.context_manager import (
+        rebuild_session_interview_context_from_transcript,
+    )
 
     rebuild_session_interview_context_from_transcript(session_state, messages)

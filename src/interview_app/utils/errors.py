@@ -15,9 +15,7 @@ from interview_app.security.redaction import redact_secrets
 
 logger = logging.getLogger("interview_app.errors")
 
-_GENERIC_USER_MESSAGE: Final[str] = (
-    "Something went wrong. Please try again or adjust your inputs."
-)
+_GENERIC_USER_MESSAGE: Final[str] = "Something went wrong. Please try again or adjust your inputs."
 
 
 class AppError(Exception):

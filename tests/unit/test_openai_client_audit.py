@@ -41,7 +41,9 @@ def test_generate_response_logs_success_with_route(caplog: pytest.LogCaptureFixt
         )
     assert resp.text == "ok"
     assert any(
-        rec.message.startswith("LLM ") and "unit_test_route" in rec.message and "True" in rec.message
+        rec.message.startswith("LLM ")
+        and "unit_test_route" in rec.message
+        and "True" in rec.message
         for rec in caplog.records
     )
 

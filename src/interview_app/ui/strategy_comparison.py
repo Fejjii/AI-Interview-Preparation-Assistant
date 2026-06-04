@@ -13,8 +13,8 @@ import streamlit as st
 from interview_app.app.ui_settings import UISettings
 from interview_app.storage.strategy_comparison_evaluations import append_evaluation
 from interview_app.utils.interview_question_output import (
-    try_parse_questions_json,
     parse_generation_questions_list,
+    try_parse_questions_json,
 )
 
 

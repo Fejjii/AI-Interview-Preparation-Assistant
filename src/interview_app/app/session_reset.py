@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import Any
 
 from interview_app.app import cv_session_state as cvs
-from interview_app.services.mock_interview_flow import clear_mock_interview_runtime_state
 from interview_app.app.usage_mode import (
     KEY_BYO_KEY_HINT,
     KEY_BYO_OPENAI_API_KEY,
@@ -20,6 +19,7 @@ from interview_app.app.usage_mode import (
     KEY_USAGE_MODE,
 )
 from interview_app.security.rate_limiter import reset_rate_limit
+from interview_app.services.mock_interview_flow import clear_mock_interview_runtime_state
 
 # Widget/session keys to drop so Streamlit remounts fresh inputs (feedback, CV form, etc.).
 _WORKSPACE_WIDGET_KEYS: tuple[str, ...] = (

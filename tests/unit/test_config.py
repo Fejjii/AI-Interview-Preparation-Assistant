@@ -20,6 +20,7 @@ def test_settings_defaults() -> None:
     assert settings.openai_api_key is None
     assert settings.openai_model
     assert settings.openai_temperature == 0.2
+    assert settings.openai_max_retries == 3
 
 
 def test_settings_env_overrides(monkeypatch) -> None:
@@ -27,6 +28,7 @@ def test_settings_env_overrides(monkeypatch) -> None:
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
     monkeypatch.setenv("OPENAI_TEMPERATURE", "0.7")
+    monkeypatch.setenv("OPENAI_MAX_RETRIES", "1")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     get_settings.cache_clear()
@@ -35,6 +37,6 @@ def test_settings_env_overrides(monkeypatch) -> None:
     assert settings.app_env == "test"
     assert settings.openai_model == "gpt-4o-mini"
     assert settings.openai_temperature == 0.7
+    assert settings.openai_max_retries == 1
     assert settings.openai_api_key is not None
     assert settings.openai_api_key.get_secret_value() == "test-key"
-

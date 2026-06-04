@@ -37,7 +37,9 @@ def test_strategy_prompts_are_substantially_different() -> None:
 
     # Few-shot must carry exemplar pack + domain trace in body
     assert "Exemplars" in f.user_prompt or "exemplar" in f.user_prompt.lower()
-    assert "data_eng" in f.user_prompt or "ETL" in f.user_prompt or "pipeline" in f.user_prompt.lower()
+    assert (
+        "data_eng" in f.user_prompt or "ETL" in f.user_prompt or "pipeline" in f.user_prompt.lower()
+    )
 
     # Zero-shot must not inject few-shot exemplar headings
     assert "Example interview questions" not in z.user_prompt

@@ -1,0 +1,78 @@
+{
+  "cases": [
+    {
+      "id": "senior_data_engineer_etl",
+      "role_title": "Senior Data Engineer",
+      "seniority": "Senior",
+      "interview_round": "Technical Interview",
+      "job_description_snippet": "Own batch and streaming ETL on Snowflake and dbt; data quality SLAs.",
+      "expected_focus_keywords": [
+        "etl",
+        "pipeline",
+        "data",
+        "warehouse",
+        "dbt",
+        "snowflake",
+        "quality"
+      ],
+      "disallowed_irrelevant_themes": [
+        "salary negotiation",
+        "stock options",
+        "vacation policy"
+      ],
+      "mocked_questions": [
+        "How would you design an incremental ETL pipeline with late-arriving events in Snowflake?",
+        "What data quality checks would you add in dbt before promoting models to production?",
+        "Describe how you would monitor pipeline SLAs and alert on failures."
+      ],
+      "min_questions_with_hits": 2
+    },
+    {
+      "id": "mid_backend_system_design",
+      "role_title": "Backend Engineer",
+      "seniority": "Mid-Level",
+      "interview_round": "System Design",
+      "job_description_snippet": "Design REST and event-driven services; Redis caching; Postgres.",
+      "expected_focus_keywords": [
+        "api",
+        "service",
+        "cache",
+        "database",
+        "scale",
+        "latency"
+      ],
+      "disallowed_irrelevant_themes": [
+        "marketing campaign",
+        "brand guidelines"
+      ],
+      "mocked_questions": [
+        "How would you scale read-heavy API traffic using a cache layer?",
+        "What trade-offs do you consider when choosing Postgres vs a denormalized store?",
+        "Walk through designing an event-driven notification service."
+      ],
+      "min_questions_with_hits": 2
+    },
+    {
+      "id": "negative_off_topic_mock",
+      "role_title": "ML Engineer",
+      "seniority": "Senior",
+      "interview_round": "Technical Interview",
+      "job_description_snippet": "Train and deploy models; feature stores; monitoring drift.",
+      "expected_focus_keywords": [
+        "model",
+        "feature",
+        "training"
+      ],
+      "disallowed_irrelevant_themes": [
+        "salary",
+        "stock options",
+        "vacation"
+      ],
+      "mocked_questions": [
+        "What is your expected salary and how do you negotiate stock options?",
+        "How many vacation days do you require?"
+      ],
+      "expect_pass": false
+    }
+  ]
+}

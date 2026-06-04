@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "id": "valid_full_markdown_feedback",
+      "mock_llm_output": "## Overall score\n8\n\n## Technical Accuracy\nSolid explanation of caching (7/10).\n\n## Clarity\nClear structure.\n\n## Depth\nGood trade-off discussion.\n\n## Communication\nConcise and professional.\n\n## Strengths\n- Named concrete metrics\n- Explained failure modes\n\n## Improvements\n- Add rollback plan\n- Mention observability\n\n## Better / Model Answer\nI would start with requirements, then add a cache-aside layer with TTL and cache invalidation on writes.\n\n## Next Follow-up Question\nHow would you handle cache stampede during a hot key event?",
+      "expect_valid": true,
+      "expect_follow_up": true,
+      "min_score": 1
+    },
+    {
+      "id": "legacy_criteria_sections",
+      "mock_llm_output": "## Overall score\n6\n\n## Strengths\n- Good examples\n\n## Improvements\n- Missing metrics\n\n## Criteria met\n- STAR structure\n\n## Criteria missing / Gaps\n- Quantified impact\n\n## Better / Model Answer\nAdd numbers and scope.\n\n## Follow-up questions\n- What would you measure?\n- How would you validate?",
+      "expect_valid": true,
+      "expect_follow_up": true,
+      "min_score": 1
+    },
+    {
+      "id": "malformed_plain_text",
+      "mock_llm_output": "Great answer! Keep it up.",
+      "expect_valid": false
+    },
+    {
+      "id": "empty_output",
+      "mock_llm_output": "",
+      "expect_valid": false
+    }
+  ]
+}

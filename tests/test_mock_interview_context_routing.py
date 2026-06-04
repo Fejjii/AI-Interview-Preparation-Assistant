@@ -110,7 +110,10 @@ def test_project_story_with_overlap_still_counts_as_answer() -> None:
         "I migrated a legacy data warehouse to Snowflake and used dbt incremental models "
         "to reduce runtime by 40%."
     )
-    assert detect_user_turn_type(msg, pending_question="How would you use dbt on Snowflake?") == UserTurnType.ANSWER
+    assert (
+        detect_user_turn_type(msg, pending_question="How would you use dbt on Snowflake?")
+        == UserTurnType.ANSWER
+    )
 
 
 def test_request_contextual_turn_kind() -> None:
@@ -119,7 +122,10 @@ def test_request_contextual_turn_kind() -> None:
         detect_mock_interview_turn_kind(msg, "Any pending question?", None)
         == MockInterviewTurnKind.REQUEST_CONTEXTUAL_QUESTION
     )
-    assert detect_user_turn_type(msg, pending_question="Any pending question?") == UserTurnType.CONTEXTUAL_QUESTION_REQUEST
+    assert (
+        detect_user_turn_type(msg, pending_question="Any pending question?")
+        == UserTurnType.CONTEXTUAL_QUESTION_REQUEST
+    )
 
 
 def test_run_turn_related_question_uses_session_meta_role(input_pipeline_ok: None) -> None:
@@ -293,7 +299,9 @@ def test_multi_turn_contextual_then_answer_then_eval(input_pipeline_ok: None) ->
 
     with patch("interview_app.services.chat_service.generate_questions", return_value=q1):
         out1 = run_turn(_settings(), msgs_a, session_state=session)
-    assert "incremental" in out1.assistant_message.lower() or "dbt" in out1.assistant_message.lower()
+    assert (
+        "incremental" in out1.assistant_message.lower() or "dbt" in out1.assistant_message.lower()
+    )
     assert session.get("ia_mock_active_question", {}).get("question_type") == "contextual_follow_up"
 
     msgs_b = msgs_a + [

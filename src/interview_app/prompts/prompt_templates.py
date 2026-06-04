@@ -92,4 +92,3 @@ def _extract_description(text: str) -> str | None:
         if line.strip().lower().startswith("description:"):
             return line.split(":", 1)[1].strip() or None
     return None
-

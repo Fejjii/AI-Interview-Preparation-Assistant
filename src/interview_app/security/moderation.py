@@ -27,14 +27,24 @@ _CATEGORY_PATTERNS: Final[dict[str, list[re.Pattern[str]]]] = {
         re.compile(r"\b(mass\s+(shooting|murder|violence)\s+plan)\b", re.IGNORECASE),
     ],
     "sexual_content": [
-        re.compile(r"\bwrite\s+.{0,20}(explicit|erotic)\s+(sexual\s+)?(story|content|fiction)\b", re.IGNORECASE),
-        re.compile(r"\b(explicit|erotic)\s+sexual\s+(story|content|fiction|roleplay)\b", re.IGNORECASE),
+        re.compile(
+            r"\bwrite\s+.{0,20}(explicit|erotic)\s+(sexual\s+)?(story|content|fiction)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b(explicit|erotic)\s+sexual\s+(story|content|fiction|roleplay)\b", re.IGNORECASE
+        ),
         re.compile(r"\b(sexual\s+(roleplay|fantasy)\s+(with|about)\s+minor)\b", re.IGNORECASE),
     ],
     "illegal_activity": [
-        re.compile(r"\b(how\s+to\s+(hack|crack|break\s+into)\s+(a\s+)?(bank|system|account))\b", re.IGNORECASE),
+        re.compile(
+            r"\b(how\s+to\s+(hack|crack|break\s+into)\s+(a\s+)?(bank|system|account))\b",
+            re.IGNORECASE,
+        ),
         re.compile(r"\b(synthesize|manufacture)\s+(meth|fentanyl|drugs)\b", re.IGNORECASE),
-        re.compile(r"\b(credit\s+card\s+fraud|identity\s+theft)\s+(tutorial|guide|how)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(credit\s+card\s+fraud|identity\s+theft)\s+(tutorial|guide|how)\b", re.IGNORECASE
+        ),
     ],
 }
 

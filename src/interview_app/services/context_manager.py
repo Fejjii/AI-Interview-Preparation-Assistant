@@ -11,8 +11,6 @@ import re
 from collections.abc import MutableMapping
 from typing import Any, TypedDict
 
-from interview_app.utils.types import ChatMessage
-
 from interview_app.services.context_extractor import (
     InterviewTopicsDict,
     empty_interview_topics,
@@ -20,6 +18,7 @@ from interview_app.services.context_extractor import (
     flatten_interview_topics,
     interview_topics_non_empty,
 )
+from interview_app.utils.types import ChatMessage
 
 KEY_SESSION_INTERVIEW_CONTEXT = "ia_session_interview_context"
 KEY_ACTIVE_INTERVIEW_QUESTION = "ia_mock_active_question"
@@ -43,7 +42,9 @@ def init_session_interview_context(session_state: MutableMapping[str, Any]) -> N
         session_state[KEY_SESSION_INTERVIEW_CONTEXT] = empty_interview_topics()
 
 
-def flatten_session_context_for_evaluator(session_state: MutableMapping[str, Any] | None) -> list[str]:
+def flatten_session_context_for_evaluator(
+    session_state: MutableMapping[str, Any] | None,
+) -> list[str]:
     """Flatten stored interview context into tag-like strings for answer evaluation."""
     return flatten_interview_topics(get_session_interview_context(session_state), max_items=40)
 
@@ -105,7 +106,9 @@ def set_active_interview_question(
     session_state[KEY_ACTIVE_INTERVIEW_QUESTION] = payload
 
 
-def get_session_interview_context(session_state: MutableMapping[str, Any] | None) -> InterviewTopicsDict:
+def get_session_interview_context(
+    session_state: MutableMapping[str, Any] | None,
+) -> InterviewTopicsDict:
     if not session_state:
         return empty_interview_topics()
     raw = session_state.get(KEY_SESSION_INTERVIEW_CONTEXT)
@@ -120,7 +123,7 @@ def get_session_interview_context(session_state: MutableMapping[str, Any] | None
             else:
                 out[k] = str(v).strip()[:4000]
         elif isinstance(v, list):
-            out[k] = [str(x).strip() for x in v if str(x).strip()][: _MAX_PER_BUCKET]
+            out[k] = [str(x).strip() for x in v if str(x).strip()][:_MAX_PER_BUCKET]
         else:
             out[k] = empty_interview_topics()[k]  # type: ignore[index]
     return out

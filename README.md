@@ -1,8 +1,10 @@
 # AI Interview Preparation Assistant
 
-A **Streamlit** web app that helps candidates practice technical and behavioral interviews. It combines **OpenAI** language models with configurable prompts, a mock interview chat, question generation, answer feedback, and **CV-based interview prep**—all behind a layered **security and guardrail** pipeline suitable for portfolio and local production use.
+**Streamlit + OpenAI** interview coach for technical and behavioral practice: mock interviews, tailored question generation, answer feedback, and CV-based prep—with guardrails, prompt strategies, and deterministic evaluations suitable for portfolio and demo deployment.
 
-**Workspace:** The main area uses **tabs** to switch between **Mock Interview**, **Interview Questions**, **CV Interview Prep**, and **Feedback / Evaluation**. The **Current Setup** strip summarizes your sidebar choices (including active **prompt strategy**).
+**Live demo:** coming soon
+
+**Screenshots:** coming after deployment (see [docs/screenshots/](docs/screenshots/))
 
 ---
 
@@ -10,238 +12,202 @@ A **Streamlit** web app that helps candidates practice technical and behavioral 
 
 | Area | What it does |
 |------|----------------|
-| **Sidebar configuration** | Role category, seniority, job description, interview round, focus, interviewer persona, **question difficulty** (Auto or fixed Easy / Medium / Hard), **prompt strategy**, response language, **model** (GPT-4.1 family, GPT-4o, GPT-4o mini), generation sliders (temperature, top-p, max tokens), optional **Show debug prompts**, shortcuts, and saved sessions. |
-| **Deployment (sidebar)** | Collapsible guidance and links for hosting the app (e.g. Streamlit Community Cloud, Azure, AWS, GCP, Docker). See also **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for container and cloud notes. |
-| **Mock interview** | Turn-by-turn coaching: greetings, explicit “start interview” flows, generated questions, answer evaluation with follow-ups. |
-| **Interview questions** | Structured questions from your current setup, optional **Compare Prompt Strategies**, optional debug prompts. |
-| **Answer feedback** | Score-style feedback with strengths, gaps, and suggestions. |
-| **CV interview prep** | Upload PDF/DOCX, structured extraction, tailored questions and practice modes. |
-| **Dark mode** | Sidebar toggle; theme uses CSS tokens for readable contrast. |
-| **Saved sessions** | Local JSON under `data/sessions/` (gitignored), **scoped by usage mode** (Demo vs BYO); list, open, delete. |
-| **Guardrails** | Input validation, length limits, secret redaction, prompt-injection heuristics, moderation, rate limiting, and output checks (see [Security overview](#security--guardrails-overview)). |
+| **Mock interview** | Chat-style practice with turn routing (clarifications vs answers), scoring, and follow-up questions |
+| **Interview questions** | Role-aware question sets; optional **Compare Prompt Strategies** side by side |
+| **CV interview prep** | PDF/DOCX upload, structured extraction, practice or full prep modes |
+| **Answer feedback** | Markdown-parsed scores, strengths, gaps, model answers, follow-ups |
+| **Sidebar setup** | Role, seniority, round, focus, persona, difficulty, model preset, prompt strategy, language |
+| **Demo / BYO API key** | Server key (Demo) or session-only user key (BYO)—BYO never persisted to disk |
+| **Saved sessions** | Local JSON under `data/sessions/` (gitignored), scoped by usage mode |
+| **Diagnostics** | Collapsed sidebar panel: environment, model, security toggles—no secret values |
+| **Dark mode** | Theme toggle with accessible contrast tokens |
 
 ---
 
-## Session setup: Demo mode vs Bring Your Own (BYO) API key
+## AI engineering highlights
 
-At the top of the sidebar, **Session setup** controls how API calls are billed for **this browser session** (Streamlit server-side `session_state` only):
-
-| Mode | Billing | API key source |
-|------|---------|----------------|
-| **Demo mode** | Uses the **server** project key from `OPENAI_API_KEY` in `.env` / environment. | Not entered in the UI. |
-| **Use your own OpenAI API key (BYO)** | Uses **your** key for this session. | Typed once per apply; stored only in memory for the active Streamlit session. |
-
-**Behavior:**
-
-- **Masked input:** In BYO mode, the key field defaults to **password** style; optional **Show key** reveals it locally.
-- **Session-only:** BYO keys are **not** written to disk, `localStorage`, or saved session JSON. They exist only in server memory until the tab/session ends or you apply a different mode.
-- **Full reset on Apply:** Clicking **Apply usage mode** runs a **full workspace reset**: mock interview transcript, CV prep state, strategy comparison, feedback fields, rate-limit counters, and in-memory BYO secrets are cleared, then the new mode (and BYO key if applicable) is applied. Sidebar preferences such as role, interview setup, and dark mode are **preserved**.
-- **Confirmation:** If you have unsaved work (messages, loaded session, CV analysis, or a strategy comparison), you must check a confirmation box before Apply proceeds.
-- **No cross-mode leakage:** Switching Demo ↔ BYO does not leave the previous mode’s chat or CV data in the UI; each Apply starts from a clean workspace for that mode.
-
-If Demo mode is selected but the server has **no** `OPENAI_API_KEY`, the UI shows a warning—configure the environment or switch to BYO with your key.
+| Topic | Implementation |
+|-------|----------------|
+| **Five prompt strategies** | Zero-shot, few-shot, chain-of-thought, structured JSON output, role-based (`prompts/prompt_strategies.py`) |
+| **Mock interview FSM** | Deterministic turn classification and evaluation gating (`mock_interview_flow.py`) |
+| **CV extraction & prep** | Two-pass structured JSON with Pydantic models and delimiter-safe CV fencing (`cv/`) |
+| **Guardrails** | Input/output pipeline: length limits, redaction, injection heuristics, moderation, rate limits (`security/`) |
+| **Retry / backoff** | OpenAI SDK retries for transient errors (`OPENAI_MAX_RETRIES`, exponential backoff) |
+| **Usage / cost visibility** | Token counts, latency, and rough USD estimates on LLM responses (`usage_formatting.py`) |
+| **Deterministic evaluations** | Fixture-driven task checks without live OpenAI (`evaluations/`, `tests/evaluations/`) |
+| **CI** | GitHub Actions: pytest, evaluations, ruff, black—no secrets required (`.github/workflows/ci.yml`) |
 
 ---
 
-## Saved sessions and isolation
+## Architecture (summary)
 
-Saved mock interviews are JSON files under `SESSIONS_DIR` (default `data/sessions/`). They are **isolated by usage scope**:
+Thin **Streamlit UI** → **services** → **OpenAI client**, with prompts and security at the boundaries:
 
-- **Demo mode** sees sessions under `demo/` plus **legacy** flat `*.json` files at the sessions root (treated as Demo history).
-- **BYO mode** (with an applied key) sees only sessions under `byo/<sha256-of-key>/` for **that** key. Another BYO key gets a different folder. Demo sessions **do not** appear when you are in BYO mode, and vice versa.
+1. **Entry:** `streamlit_app.py` — adds `src/` to `sys.path`, loads optional `.env`, runs `interview_app.app.main.run()`.
+2. **App:** `app/main.py`, `controls.py`, `layout.py` — sidebar config and four workspace tabs.
+3. **Services:** `interview_generator`, `answer_evaluator`, `chat_service`, `cv_interview_service`.
+4. **Security:** `security/pipeline.py` on inputs and outputs before/after LLM calls.
+5. **Persistence:** `storage/sessions.py` for mock-interview JSON.
 
-Each saved file may include a `usage_scope` tag (e.g. `demo`, `byo:<hex>`) for clarity; the directory layout is authoritative for listing.
-
-After switching modes with **Apply usage mode**, the sidebar session list reflects **only** the current scope (a rerun runs automatically).
-
----
-
-## CV Interview Prep: Practice vs full prep
-
-On **CV Interview Prep**, after uploading a CV and running analysis:
-
-- **Practice (questions only):** Generates tailored **questions** without model “ideal” answers in that step. You type answers in the UI, then **Evaluate answers** runs structured feedback in batch (Pydantic-parsed).
-- **Full prep:** Produces the **full bundle**—overview-style context, questions, model answers, and follow-ups in one generation pass—using structured JSON validated with **`cv/models.py`** (same guardrail and JSON parsing pipeline as extraction).
-
-Both paths use the same extraction + guardrails; only the generation prompt and output model differ (`generation_mode` in `services/cv_interview_service.py`).
-
----
-
-## Architecture overview
-
-The app follows a **thin UI → services → LLM** flow:
-
-1. **Entry:** `streamlit_app.py` adds `src/` to `sys.path`, loads `.env`, calls `interview_app.app.main.run()`.
-2. **App layer:** `app/main.py` composes theme, sidebar (`controls.py`), and main workspace (`layout.py`).
-3. **Services:** `interview_generator`, `answer_evaluator`, `chat_service`, `cv_interview_service` implement domain flows; each runs inputs through `security/pipeline.py` before calling `llm/openai_client.py`.
-4. **Prompts:** Templates and strategies live under `prompts/`; personas under `prompts/personas.py`.
-5. **Persistence:** `storage/sessions.py` reads/writes session JSON.
-
-For diagrams and module boundaries, see **[docs/architecture.md](docs/architecture.md)**.
-
----
-
-## Prompt Strategies
-
-The app ships with **five** composable prompting techniques for **interview question generation**. Implementation details live in `src/interview_app/prompts/prompt_strategies.py`, templates in `src/interview_app/prompts/templates/`, and focus-aligned few-shot demonstrations in `src/interview_app/prompts/few_shot_examples.py`. You pick one in the sidebar under **Prompt Strategy**:
-
-| Strategy | What it means in this app | What you should see |
-|----------|---------------------------|---------------------|
-| **Zero-shot** | User prompt is **direct instructions only** (numbered list). System prompt states the technique and **does not** inject persona calibration—persona appears only as one line of context in the user prompt. | Straight, standard questions with minimal prompting machinery. |
-| **Few-shot** | **Three demonstration questions** are injected per **interview focus** (from `few_shot_examples.py`), plus a scenario line using your role, seniority, and round—then a separate “generate new questions” task. | Questions that follow the **pattern and depth** of the demonstrations without copying them. |
-| **Chain-of-thought** | **Internal** reasoning steps (priorities, competencies, seniority/round fit, question plan) are specified in the **system** prompt; the user prompt is scenario + “numbered list only” so reasoning is not echoed. | Often more targeted, competency-aligned questions; output should still be **only** questions. |
-| **Structured Output** | Model must return **valid JSON** with a `questions` array; each item has `question`, `skill_tested`, `difficulty`, `why_it_matters`. The Interview Questions tab renders these fields in expanders; invalid JSON falls back to a raw view with a warning. | Schema-shaped output with metadata per question. |
-| **Role-based** | **Strong interviewer assignment** in the user prompt (`persona_identity` + full `persona_behavior` text from `personas.py`) and instructions to sound like a live interviewer. | Tone and framing driven by persona + role (vs. neutral zero-shot). |
-
-The **Current Setup** strip at the top of the workspace shows the active strategy (e.g. `Prompt · Few-shot`). The **Interview Questions** tab also shows **Active prompt strategy** above the controls.
-
-### Strategy comparison
-
-On the **Interview Questions** tab, **Strategy Comparison** lets you pick **Strategy A** and **Strategy B** from the same five techniques, then **Compare Selected Strategies**. The app uses your current sidebar setup and **Number of questions** to generate both runs, then shows results **side by side** in aligned rows (Question 1 vs Question 1, etc.). Structured Output rows include optional captions for skill, difficulty, and “why it matters” when JSON parses cleanly. Below that, **Evaluate the strategies** offers sliders (realism, difficulty match, overall quality), a **Winner** choice, and **Save evaluation**—appended to `data/strategy_comparison_evaluations.json` for local review.
-
-**Note:** Answer feedback and the CV prep pipeline use their own fixed system prompts; only the job-description-based question generator and mock-interview **question** turns follow the selected strategy. If **Structured Output** is selected for mock interview, the chat extracts the **first** `question` field from valid JSON for a single spoken prompt.
+Deeper diagrams: **[docs/architecture.md](docs/architecture.md)**.
 
 ---
 
 ## Tech stack
 
-- **Python 3.11+**
-- **Streamlit** — UI and session state
-- **OpenAI Python SDK (v1+)** — chat completions
-- **Pydantic / pydantic-settings** — configuration and structured models
-- **langdetect** — optional language hints
-- **pypdf, python-docx** — CV text extraction
-
-Development tooling: **pytest**, **ruff**, **black**, **mypy** (see [docs/development.md](docs/development.md)).
+- Python **3.11+**
+- Streamlit, OpenAI Python SDK v1+, Pydantic / pydantic-settings
+- langdetect, pypdf, python-docx
+- Dev: pytest, ruff, black, mypy
 
 ---
 
-## Installation and setup
+## Setup (local)
 
-### 1. Clone and virtual environment (Windows PowerShell example)
-
-```powershell
-cd path\to\sfejji-AE.1.5
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+```bash
+git clone <your-repo-url>
+cd AI-Interview-Preparation-Assistant
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+cp .env.example .env               # Windows: copy .env.example .env
 ```
 
-### 2. Environment variables
+Edit `.env` and set `OPENAI_API_KEY` for **Demo mode** (or use **BYO** in the UI without a server key).
 
-Copy the template and add your API key:
-
-```powershell
-copy .env.example .env
+```bash
+python -m streamlit run streamlit_app.py
 ```
 
-Edit `.env` (never commit it). See **[Environment variables](#environment-variables)** below.
+Open `http://localhost:8501`. Optional: open sidebar **Diagnostics** to verify configuration (no secrets shown).
+
+---
+
+## Tests and quality
+
+```bash
+pytest
+pytest tests/evaluations -v
+ruff check src tests evaluations
+black --check src tests evaluations
+```
+
+- Integration smoke (`tests/integration/`) **skips** without `OPENAI_API_KEY`.
+- Evaluations use mocked LLM output only — see **[evaluations/README.md](evaluations/README.md)**.
+
+CI runs the same checks on every push and PR (no repository secrets).
+
+---
+
+## Deploy on Streamlit Community Cloud
+
+| Setting | Value |
+|---------|--------|
+| **Main file** | `streamlit_app.py` |
+| **Python** | 3.11 or 3.12 |
+| **Dependencies** | `requirements.txt` (runtime only) |
+
+### Steps
+
+1. Push this repo to **GitHub**.
+2. Go to [share.streamlit.io](https://share.streamlit.io) → **Create app** → select the repo and branch.
+3. Set main file path to **`streamlit_app.py`**.
+4. Under **Secrets**, add:
+
+   ```toml
+   OPENAI_API_KEY = "sk-your-key-here"
+   ```
+
+5. **Deploy**, then open **Diagnostics** in the sidebar and confirm **Server OPENAI_API_KEY: Configured**.
+6. Run the demo smoke test below on all four tabs.
+
+Full checklist: **[docs/STREAMLIT_CLOUD.md](docs/STREAMLIT_CLOUD.md)**.
+
+### Post-deploy demo (smoke test)
+
+1. **Session setup:** Demo mode → **Apply usage mode** (if prompted).
+2. **Mock Interview:** “Let’s start” → answer one question → confirm score-style feedback and follow-up.
+3. **Interview Questions:** Generate 3 questions with your sidebar role/focus.
+4. **CV Interview Prep:** Upload a short synthetic CV (PDF/DOCX) → run analysis (practice or full prep).
+5. **Feedback / Evaluation:** Paste a sample answer → run evaluation.
+
+For reviewers without Cloud access: use **BYO** in the sidebar with your own key (session-only, never saved to git).
+
+---
+
+## Screenshots
+
+_Placeholder — add images under `docs/screenshots/` after deployment and link them here._
+
+Suggested: workspace overview, mock interview feedback, strategy comparison, CV prep, diagnostics panel.
+
+---
+
+## Session modes (Demo vs BYO)
+
+| Mode | API key source |
+|------|----------------|
+| **Demo** | Server `OPENAI_API_KEY` from `.env` or Streamlit Cloud secrets |
+| **BYO** | User enters key in UI; stored only in server `session_state` for that browser session |
+
+BYO keys are **not** written to session JSON or git. **Apply usage mode** resets workspace state when switching modes.
 
 ---
 
 ## Environment variables
 
-| Variable | Purpose | Notes |
-|----------|---------|--------|
-| `OPENAI_API_KEY` | OpenAI API access | **Required** for live LLM calls |
-| `OPENAI_MODEL` | Default model when the client is constructed without an explicit model; can be any preset key (`gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-4o`, `gpt-4o-mini`) or a raw model id | Default: `gpt-4o-mini` |
-| `OPENAI_TEMPERATURE` | Default sampling temperature | Default: `0.2` |
-| `APP_ENV` | Logical environment label | e.g. `dev`, `prod` |
-| `SESSIONS_DIR` | Where session JSON files are stored | Default: `data/sessions` (relative to process CWD) |
+| Variable | Purpose |
+|----------|---------|
+| `OPENAI_API_KEY` | Required for Demo mode LLM calls |
+| `OPENAI_MODEL` | Default preset or raw model id (default: `gpt-4o-mini`) |
+| `OPENAI_MAX_RETRIES` | Transient API retries (default: `3`) |
+| `APP_ENV` | Label shown in Diagnostics (e.g. `dev`, `prod`) |
+| `SESSIONS_DIR` | Saved sessions directory (default: `data/sessions`) |
 
-Security-related variables use the `SECURITY_` prefix (see [docs/security.md](docs/security.md)):
-
-- `SECURITY_MAX_INPUT_LENGTH`, `SECURITY_OUTPUT_MAX_LENGTH`
-- `SECURITY_RATE_LIMIT_MAX_REQUESTS`, `SECURITY_RATE_LIMIT_WINDOW_SECONDS`
-- `SECURITY_MODERATION_ENABLED`, `SECURITY_PROMPT_INJECTION_STRICT`
-- `SECURITY_CV_MAX_FILE_BYTES`, `SECURITY_CV_MAX_TEXT_CHARS`
-
----
-
-## How to run the app
-
-From the project root (repository folder containing `streamlit_app.py`):
-
-```powershell
-python -m streamlit run streamlit_app.py
-```
-
-(`streamlit run …` also works if `streamlit` is on your `PATH`.) Open the URL shown (typically `http://localhost:8501`).
-
----
-
-## How to run tests
-
-```powershell
-pytest
-pytest tests\unit -v
-```
-
-Integration tests under `tests/integration/` may be skipped unless `OPENAI_API_KEY` is set. Full detail: **[docs/testing.md](docs/testing.md)**.
-
----
-
-## Reviewers: testing with your own API key
-
-1. Clone the repo and install dependencies (see [Installation and setup](#installation-and-setup)).
-2. You can run **without** putting a key in `.env` if you use **BYO** in the app: open the app, choose **Use your own OpenAI API key**, paste your key, and **Apply usage mode**.
-3. Alternatively, set `OPENAI_API_KEY` in `.env` and use **Demo mode** so the server uses that key.
-4. Run **`pytest tests/unit`** for core checks; optional integration smoke tests need a key in the environment (see [docs/testing.md](docs/testing.md)).
-
-Do not commit `.env` or share keys in issues or screenshots.
+Security toggles use the `SECURITY_` prefix — see **[docs/security.md](docs/security.md)** and `.env.example`.
 
 ---
 
 ## Project structure
 
 ```
-sfejji-AE.1.5/
-├── streamlit_app.py          # Entrypoint: path, .env, main.run()
-├── pyproject.toml            # Project metadata and tool config
-├── requirements.txt
+├── streamlit_app.py          # Streamlit Community Cloud entrypoint
+├── requirements.txt          # Runtime deps (Cloud)
+├── requirements-dev.txt      # Local dev + CI
 ├── .env.example              # Documented env vars (no secrets)
-├── data/sessions/            # Saved sessions (gitignored)
-├── docs/
-│   ├── architecture.md
-│   ├── development.md
-│   ├── testing.md
-│   ├── security.md
-│   ├── DEPLOYMENT.md
-│   └── PROJECT_OVERVIEW.md   # Longer narrative / diagrams
-├── scripts/                  # Optional demos and smoke tests
-├── src/interview_app/
-│   ├── app/                  # Streamlit composition, layout, session state
-│   ├── ui/                   # Theme, widgets, display helpers
-│   ├── services/             # Interview, chat, CV pipelines
-│   ├── prompts/              # Strategies, templates, personas
-│   ├── llm/                  # OpenAI client, model presets
-│   ├── security/             # Guards, pipeline, moderation, rate limits
-│   ├── config/               # Settings from env
-│   ├── storage/              # Session JSON I/O
-│   ├── cv/                   # CV parsing, models, prompt builders
-│   └── utils/                # Types, errors, language helpers
-└── tests/
-    ├── unit/
-    └── integration/
+├── data/sessions/.gitkeep    # Sessions dir tracked; JSON gitignored
+├── evaluations/              # Deterministic eval fixtures + checks
+├── docs/                     # architecture, security, deployment, Cloud guide
+└── src/interview_app/        # Application package
 ```
 
 ---
 
-## Security / guardrails overview
+## Security overview
 
-User and file-derived text is validated through a **single pipeline** (`security/pipeline.py`): length checks, sanitization, secret redaction, prompt-injection heuristics, optional moderation, and per-session rate limiting before the LLM; outputs are validated afterward. This is **defense in depth** for a client-trusted UI—not a substitute for server-side enforcement in a multi-tenant product.
+User text passes through validation, redaction, injection heuristics, optional moderation, and rate limiting before the LLM; outputs are checked afterward. Suitable for a **trusted demo** deployment—not a substitute for multi-tenant auth.
 
-Details, configuration, and manual test ideas: **[docs/security.md](docs/security.md)**.
+Details: **[docs/security.md](docs/security.md)**.
 
 ---
 
-## Roadmap / future improvements
+## Limitations
 
-- Optional **server-side** API with auth and centralized rate limits for multi-user deployment.
-- **Structured outputs** (JSON schema) more consistently across all LLM surfaces.
-- **Evaluation** harness for prompt/version regression tests.
-- **i18n** beyond language instructions in prompts.
-- **Observability** exports (OpenTelemetry) for production monitoring.
+- **Single-user demo:** No accounts, centralized billing, or cross-user isolation beyond session state.
+- **Heuristic guardrails:** Novel prompt-injection attacks may bypass rules; optional LLM classifier is reserved, not enabled.
+- **Ephemeral Cloud storage:** Saved sessions on Streamlit Community Cloud may not survive redeploys without external storage.
+- **English-first UI:** Prompt language is configurable; UI copy is primarily English.
+- **Live LLM quality:** Not scored in CI; deterministic evaluations check shape and routing only.
+
+---
+
+## Roadmap
+
+- [ ] Publish **live demo URL** on Streamlit Community Cloud
+- [ ] Add README screenshots after deployment
+- [ ] Optional **Streamlit in Snowflake** or external analytics (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md))
+- [ ] Multi-user backend with auth and centralized rate limits (out of scope for current Streamlit-only app)
+- [ ] OpenTelemetry or export metrics for production monitoring
 
 ---
 
@@ -249,14 +215,16 @@ Details, configuration, and manual test ideas: **[docs/security.md](docs/securit
 
 | Doc | Content |
 |-----|---------|
-| [docs/architecture.md](docs/architecture.md) | Layers, data flow, module map |
-| [docs/development.md](docs/development.md) | Conventions, linting, extending prompts |
-| [docs/testing.md](docs/testing.md) | Pytest, manual guardrail checks |
-| [docs/security.md](docs/security.md) | Guardrails, env vars, operational notes |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker and cloud notes |
+| [docs/STREAMLIT_CLOUD.md](docs/STREAMLIT_CLOUD.md) | Community Cloud deploy checklist |
+| [docs/architecture.md](docs/architecture.md) | Layers and data flow |
+| [docs/development.md](docs/development.md) | Conventions and CI |
+| [docs/testing.md](docs/testing.md) | Pytest and manual guardrail checks |
+| [docs/security.md](docs/security.md) | Guardrails configuration |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker and other clouds |
+| [evaluations/README.md](evaluations/README.md) | Deterministic evaluation suite |
 
 ---
 
 ## License / author
 
-See `pyproject.toml` for project metadata. Use `.gitignore` to keep `.env` and local session data out of version control.
+See `pyproject.toml` for metadata. Keep `.env`, `.streamlit/secrets.toml`, and `data/sessions/*.json` out of version control (see `.gitignore`).

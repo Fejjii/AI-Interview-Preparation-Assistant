@@ -243,11 +243,23 @@ _DOMAIN_PHRASES: tuple[tuple[str, str], ...] = (
 )
 
 _ACHIEVEMENT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"reduced\s+(?:runtime|latency|cost|spend)\s+by\s+[\d.]+\s*%", re.I), "Reduced runtime/cost (quantified)"),
-    (re.compile(r"(?:cut|lowered|decreased|improved)\s+.+\s+by\s+[\d.]+\s*%", re.I), "Quantified improvement"),
-    (re.compile(r"\b(?:p\d{2}|p99|p95|latency)\b.+(?:ms|second|sec)", re.I), "Latency / SLO improvement"),
+    (
+        re.compile(r"reduced\s+(?:runtime|latency|cost|spend)\s+by\s+[\d.]+\s*%", re.I),
+        "Reduced runtime/cost (quantified)",
+    ),
+    (
+        re.compile(r"(?:cut|lowered|decreased|improved)\s+.+\s+by\s+[\d.]+\s*%", re.I),
+        "Quantified improvement",
+    ),
+    (
+        re.compile(r"\b(?:p\d{2}|p99|p95|latency)\b.+(?:ms|second|sec)", re.I),
+        "Latency / SLO improvement",
+    ),
     (re.compile(r"scaled\s+(?:to|from)\s+", re.I), "Scaled system traffic/data"),
-    (re.compile(r"(?:handled|processed)\s+[\d.]+\s*(?:tb|gb|pb|million|billion)\s", re.I), "Scale / volume handled"),
+    (
+        re.compile(r"(?:handled|processed)\s+[\d.]+\s*(?:tb|gb|pb|million|billion)\s", re.I),
+        "Scale / volume handled",
+    ),
     (re.compile(r"(?:saved|cut)\s+\$[\d,]+", re.I), "Cost savings ($)"),
 )
 
@@ -301,7 +313,11 @@ def extract_interview_topics(message: str, *, max_per_bucket: int = 20) -> Inter
             continue
         tl = tok.lower().rstrip(".,)")
         if tl in _TOOLS:
-            display = tl.upper() if tl in {"etl", "elt", "cdc", "sla", "ml", "api", "sql", "oltp", "olap"} else tl
+            display = (
+                tl.upper()
+                if tl in {"etl", "elt", "cdc", "sla", "ml", "api", "sql", "oltp", "olap"}
+                else tl
+            )
             out["tools"].append(display if tl != "power bi" else "Power BI")
         if tl in _TECHNOLOGIES or (tl in {"ml", "ai"}):
             out["technologies"].append(tl.upper() if len(tl) <= 4 and tl.isalpha() else tl)
@@ -350,7 +366,9 @@ def interview_topics_non_empty(d: InterviewTopicsDict | dict[str, Any]) -> bool:
     return False
 
 
-def flatten_interview_topics(d: InterviewTopicsDict | dict[str, Any], *, max_items: int = 40) -> list[str]:
+def flatten_interview_topics(
+    d: InterviewTopicsDict | dict[str, Any], *, max_items: int = 40
+) -> list[str]:
     """Single list for evaluator hints and legacy ``candidate_topics`` merging."""
     items: list[str] = []
     order = ("tools", "technologies", "concepts", "projects", "achievements", "domains")

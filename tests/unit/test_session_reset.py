@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from interview_app.app import cv_session_state as cvs
 from interview_app.app.session_reset import reset_all_workspace_state, session_has_ephemeral_work
-from interview_app.app.usage_mode import KEY_BYO_KEY_HINT, KEY_BYO_OPENAI_API_KEY, KEY_USAGE_MODE, UsageMode
+from interview_app.app.usage_mode import (
+    KEY_BYO_KEY_HINT,
+    KEY_BYO_OPENAI_API_KEY,
+    KEY_USAGE_MODE,
+    UsageMode,
+)
 
 
 def test_session_has_ephemeral_work_messages() -> None:

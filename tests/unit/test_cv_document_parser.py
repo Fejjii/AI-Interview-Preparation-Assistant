@@ -28,7 +28,9 @@ def test_validate_file_too_large() -> None:
 
 
 def test_validate_pdf_magic_ok() -> None:
-    ext = validate_cv_upload(filename="cv.pdf", data=b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n", max_bytes=1024)
+    ext = validate_cv_upload(
+        filename="cv.pdf", data=b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n", max_bytes=1024
+    )
     assert ext == ".pdf"
 
 
@@ -72,7 +74,9 @@ def test_extract_text_pdf_empty_pages_returns_empty_string(monkeypatch: pytest.M
 def test_extract_from_pdf_uses_extractor(monkeypatch: pytest.MonkeyPatch) -> None:
     from interview_app.cv import document_parser as dp
 
-    monkeypatch.setattr(dp, "extract_text_pdf", lambda d: "Python developer with 5 years experience.")
+    monkeypatch.setattr(
+        dp, "extract_text_pdf", lambda d: "Python developer with 5 years experience."
+    )
     out = extract_text_from_cv_bytes(
         filename="a.pdf",
         data=b"%PDF-1.4\n",

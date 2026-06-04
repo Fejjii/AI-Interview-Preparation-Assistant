@@ -116,7 +116,10 @@ def build_zero_shot_prompt(
         diversity_block_kind="zero_shot",
     )
     return PromptBuildResult(
-        system_prompt=system_prompt, user_prompt=user_prompt, template_name="zero_shot", debug_trace=trace
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        template_name="zero_shot",
+        debug_trace=trace,
     )
 
 
@@ -182,7 +185,10 @@ def build_few_shot_prompt(
         diversity_block_kind="few_shot",
     )
     return PromptBuildResult(
-        system_prompt=system_prompt, user_prompt=user_prompt, template_name="few_shot", debug_trace=trace
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        template_name="few_shot",
+        debug_trace=trace,
     )
 
 
@@ -224,7 +230,10 @@ def build_chain_of_thought_prompt(
         diversity_and_quality_block=diversity,
     )
     system_prompt = _system_prompt_for(
-        "chain_of_thought", response_language=response_language, persona=persona, seniority=seniority
+        "chain_of_thought",
+        response_language=response_language,
+        persona=persona,
+        seniority=seniority,
     )
     trace = PromptStrategyDebugTrace(
         strategy_key="chain_of_thought",
@@ -276,7 +285,10 @@ def build_structured_output_prompt(
         seniority_calibration_block=seniority_calibration_block,
     )
     system_prompt = _system_prompt_for(
-        "structured_output", response_language=response_language, persona=persona, seniority=seniority
+        "structured_output",
+        response_language=response_language,
+        persona=persona,
+        seniority=seniority,
     )
     trace = PromptStrategyDebugTrace(
         strategy_key="structured_output",
@@ -351,7 +363,10 @@ def build_role_based_prompt(
         diversity_block_kind="n/a_role_based",
     )
     return PromptBuildResult(
-        system_prompt=system_prompt, user_prompt=user_prompt, template_name="role_based", debug_trace=trace
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        template_name="role_based",
+        debug_trace=trace,
     )
 
 
@@ -470,13 +485,18 @@ def evaluation_coaching_directive(prompt_strategy: str) -> str:
 
     Used only in mock interview (answer feedback tab keeps its own fixed coach prompt).
     """
-    key = prompt_strategy if prompt_strategy in {
-        "zero_shot",
-        "few_shot",
-        "chain_of_thought",
-        "structured_output",
-        "role_based",
-    } else "zero_shot"
+    key = (
+        prompt_strategy
+        if prompt_strategy
+        in {
+            "zero_shot",
+            "few_shot",
+            "chain_of_thought",
+            "structured_output",
+            "role_based",
+        }
+        else "zero_shot"
+    )
     directives: dict[str, str] = {
         "zero_shot": (
             "Coaching style: zero-shot — be direct, structured, and concise; avoid lengthy preamble."

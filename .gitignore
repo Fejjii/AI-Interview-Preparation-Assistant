@@ -1,33 +1,38 @@
-.venv/
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-build/
-dist/
+# Secrets and local config
+.env
+.env.local
+.streamlit/secrets.toml
 
-# OS / editor
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db
 
-# secrets
-.env
-.env.local
-*.local
-
-# logs
+# Logs
 *.log
-debug-*.log
-**/debug-*.log
+logs/
 
-# evaluation / experiment outputs
-evaluation/results/
+# Runtime session and evaluation data (keep directory via .gitkeep)
+data/sessions/*
+!data/sessions/.gitkeep
+data/strategy_comparison_evaluations.json
 
-# local session / app data (do not commit)
-data/
-
-# temp / debug artifacts
-tmp/
-temp/
-*.tmp
-
+# Streamlit
+.streamlit/

@@ -2,9 +2,9 @@
 
 from .model_settings import (
     DEFAULT_MODEL_PRESET_KEY,
-    MODEL_PRESETS,
     MODEL_PRESET_LABELS,
     MODEL_PRESET_SIDEBAR_OPTIONS,
+    MODEL_PRESETS,
     ModelConfig,
     get_model_config,
     resolve_openai_model_id,

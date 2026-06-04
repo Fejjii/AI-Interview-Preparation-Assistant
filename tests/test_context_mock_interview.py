@@ -61,7 +61,9 @@ def test_extract_topics_etl_airflow_snowflake() -> None:
     topics = extract_interview_topics(msg)
     assert "airflow" in " ".join(topics["tools"]).lower() or "Airflow" in topics["tools"]
     assert any("snowflake" in t.lower() for t in topics["tools"])
-    assert "etl" in topics["technologies"] or any("etl" in t.lower() for t in topics["technologies"])
+    assert "etl" in topics["technologies"] or any(
+        "etl" in t.lower() for t in topics["technologies"]
+    )
 
 
 def test_extract_topics_sql_optimization() -> None:

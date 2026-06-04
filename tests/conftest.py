@@ -20,4 +20,3 @@ def pytest_configure() -> None:
     src = root / "src"
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))
-

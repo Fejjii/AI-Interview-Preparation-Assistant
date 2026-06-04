@@ -9,6 +9,10 @@ the external OpenAI HTTP API.
 
 Raises:
     ValueError: If no API key can be resolved from settings or constructor args.
+
+Retries:
+    Transient OpenAI failures (429, 5xx, timeouts, connection errors) are retried by the
+    official SDK using exponential backoff with jitter. Configure ``OPENAI_MAX_RETRIES``.
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI, RateLimitError
 
 from interview_app.config.settings import Settings, get_settings
 from interview_app.llm.model_settings import (
@@ -30,6 +34,22 @@ from interview_app.llm.model_settings import (
 from interview_app.utils.types import LLMResponse, LLMUsage
 
 logger = logging.getLogger("interview_app.llm")
+
+_RETRYABLE_STATUS_CODES = frozenset({408, 409, 429, 500, 502, 503, 504})
+
+
+def is_retryable_openai_error(exc: BaseException) -> bool:
+    """
+    Whether the OpenAI Python SDK will retry this error when ``max_retries`` > 0.
+
+    Mirrors SDK behavior (connection errors, timeouts, 408/409/429, and 5xx).
+    Used for tests and logging; retries are delegated to the SDK client.
+    """
+    if isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError)):
+        return True
+    if isinstance(exc, APIStatusError):
+        return exc.status_code in _RETRYABLE_STATUS_CODES
+    return False
 
 
 @dataclass(frozen=True)
@@ -111,12 +131,17 @@ class LLMClient:
                 "OpenAI API key is missing. Set OPENAI_API_KEY in a .env file (copy .env.example to .env) "
                 "or as an environment variable. Do not commit .env to version control."
             )
-        self._client = OpenAI(api_key=resolved_key.strip())
+        self._client = OpenAI(
+            api_key=resolved_key.strip(),
+            max_retries=self._settings.openai_max_retries,
+        )
         self._timeout_s = timeout_s
 
         # Resolve default model: explicit ctor arg > env OPENAI_MODEL (preset key or raw id).
         env_model = self._settings.openai_model
-        env_preset: ModelConfig | None = MODEL_PRESETS.get(env_model) if is_model_preset_key(env_model) else None
+        env_preset: ModelConfig | None = (
+            MODEL_PRESETS.get(env_model) if is_model_preset_key(env_model) else None
+        )
         fallback_model = resolve_openai_model_id(env_model)
         chosen_raw = model if model is not None else fallback_model
         chosen_preset: ModelConfig | None = (
@@ -125,13 +150,25 @@ class LLMClient:
         preset_for_defaults = chosen_preset or env_preset
         self._defaults = ClientParams(
             model=resolve_openai_model_id(chosen_raw),
-            temperature=temperature
-            if temperature is not None
-            else (preset_for_defaults.default_temperature if preset_for_defaults else self._settings.openai_temperature),
-            top_p=top_p if top_p is not None else (preset_for_defaults.default_top_p if preset_for_defaults else None),
-            max_tokens=max_tokens
-            if max_tokens is not None
-            else (preset_for_defaults.default_max_tokens if preset_for_defaults else None),
+            temperature=(
+                temperature
+                if temperature is not None
+                else (
+                    preset_for_defaults.default_temperature
+                    if preset_for_defaults
+                    else self._settings.openai_temperature
+                )
+            ),
+            top_p=(
+                top_p
+                if top_p is not None
+                else (preset_for_defaults.default_top_p if preset_for_defaults else None)
+            ),
+            max_tokens=(
+                max_tokens
+                if max_tokens is not None
+                else (preset_for_defaults.default_max_tokens if preset_for_defaults else None)
+            ),
         )
 
     def generate_response(
@@ -218,4 +255,6 @@ class LLMClient:
             model=getattr(resp, "model", resolved.model),
             usage=usage,
             raw_response_id=getattr(resp, "id", None),
+            latency_ms=latency_ms,
+            provider="openai",
         )

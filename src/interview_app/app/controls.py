@@ -16,13 +16,13 @@ from interview_app.app.conversation_state import (
 )
 from interview_app.app.interview_form_config import (
     INTERVIEW_ROUNDS,
+    QUESTION_DIFFICULTY_SIDEBAR_MODES,
     ROLE_CATEGORIES,
     SENIORITY_OPTIONS,
     TECHNICAL_CATEGORIES,
     build_focus_options,
     default_focus_for_round,
     default_persona_for_round,
-    QUESTION_DIFFICULTY_SIDEBAR_MODES,
     infer_difficulty_from_context,
     role_title_placeholder,
     validate_role_title,
@@ -49,6 +49,7 @@ from interview_app.storage.sessions import (
     load_session,
 )
 from interview_app.ui.sidebar_deployment import render_sidebar_deployment
+from interview_app.ui.sidebar_diagnostics import render_sidebar_diagnostics
 from interview_app.ui.usage_mode_panel import render_usage_mode_setup
 from interview_app.utils.language import (
     DEFAULT_LANGUAGE,
@@ -386,7 +387,7 @@ def render_sidebar_configuration() -> UISettings:
     byo_hint = st.session_state.get(KEY_BYO_KEY_HINT)
     byo_disp = byo_hint if usage_m == UsageMode.BYO.value else None
 
-    return UISettings(
+    settings = UISettings(
         role_category=role_category,
         role_title=role_title_trimmed,
         seniority=seniority,
@@ -406,6 +407,8 @@ def render_sidebar_configuration() -> UISettings:
         usage_mode=usage_m,
         byo_key_hint=byo_disp,
     )
+    render_sidebar_diagnostics(settings)
+    return settings
 
 
 def _format_ts(raw: str) -> str:
@@ -470,7 +473,9 @@ def _render_sidebar_session_list() -> None:
                     st.toast("Session deleted.")
                     st.rerun()
                 else:
-                    st.sidebar.warning("Could not delete this session (file missing or not removable).")
+                    st.sidebar.warning(
+                        "Could not delete this session (file missing or not removable)."
+                    )
 
 
 def _render_sidebar_delete_all_sessions() -> None:

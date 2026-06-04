@@ -3,6 +3,24 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from interview_app.cv.delimiters import CV_BEGIN, CV_END
+
+
+def strip_cv_prompt_delimiters(text: str) -> str:
+    """
+    Remove CV delimiter tokens from untrusted resume text before prompt injection.
+
+    Prevents delimiter breakout where resume content closes the fenced region early
+    and appends attacker-controlled instructions.
+    """
+    if not text:
+        return ""
+    out = text
+    for token in (CV_BEGIN, CV_END):
+        if token in out:
+            out = out.replace(token, "")
+    return out
+
 
 def normalize_cv_text(raw: str) -> str:
     """
@@ -34,4 +52,4 @@ def normalize_cv_text(raw: str) -> str:
     # Collapse long runs of spaces on each line
     lines = [" ".join(line.split()) for line in text.split("\n")]
     text = "\n".join(lines)
-    return text.strip()
+    return strip_cv_prompt_delimiters(text.strip())

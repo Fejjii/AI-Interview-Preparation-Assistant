@@ -192,6 +192,8 @@ def generate_questions(
         model=resp.model,
         usage=resp.usage,
         raw_response_id=resp.raw_response_id,
+        latency_ms=resp.latency_ms,
+        provider=resp.provider,
     )
 
     return GenerateQuestionsResult(

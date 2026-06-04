@@ -52,15 +52,11 @@ def validate_cv_upload(
     """
     ext = _normalize_extension(filename)
     if ext not in ALLOWED_CV_EXTENSIONS:
-        raise CVFileValidationError(
-            "Unsupported file type. Please upload a PDF or DOCX file."
-        )
+        raise CVFileValidationError("Unsupported file type. Please upload a PDF or DOCX file.")
     if not data:
         raise CVFileValidationError("The uploaded file is empty.")
     if len(data) > max_bytes:
-        raise CVFileValidationError(
-            f"File is too large (max {max_bytes // (1024 * 1024)} MB)."
-        )
+        raise CVFileValidationError(f"File is too large (max {max_bytes // (1024 * 1024)} MB).")
 
     if ext == ".pdf" and not _is_probably_pdf(data):
         raise CVFileValidationError("This file does not look like a valid PDF.")
