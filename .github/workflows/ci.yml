@@ -23,9 +23,8 @@ jobs:
 
       - name: Run unit and integration tests
         run: pytest
-        env:
-          # OpenAI smoke test skips without a key; CI must not require secrets.
-          OPENAI_API_KEY: ""
+        # Do not set OPENAI_API_KEY here: an empty string breaks Settings defaults
+        # (SecretStr('') vs None). Integration smoke skips when the var is unset.
 
       - name: Run deterministic evaluations
         run: pytest tests/evaluations -v
