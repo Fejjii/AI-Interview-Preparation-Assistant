@@ -20,7 +20,7 @@ from interview_app.app.usage_mode import (
 )
 from interview_app.security.redaction import redact_secrets
 
-_MODE_LABELS: tuple[str, str] = ("Demo mode", "Use your own OpenAI API key")
+_MODE_LABELS: tuple[str, str] = ("Demo access", "Use my own OpenAI key")
 
 
 def _sidebar_usage_title(title: str, hint: str | None = None) -> None:
@@ -38,8 +38,8 @@ def _render_applied_status(applied: str, hint: object) -> None:
     if applied == UsageMode.DEMO.value:
         sb.markdown(
             '<div class="ia-usage-status-card ia-usage-status-demo" role="status">'
-            '<div class="ia-usage-status-title">Demo mode active</div>'
-            '<div class="ia-usage-status-sub">Using the project API key.</div>'
+            '<div class="ia-usage-status-title">Demo access active</div>'
+            '<div class="ia-usage-status-sub">Shared demo credentials for this session.</div>'
             "</div>",
             unsafe_allow_html=True,
         )
@@ -60,6 +60,9 @@ def _render_applied_status(applied: str, hint: object) -> None:
     )
 
 
+_BYO_LABELS = frozenset({"Use my own OpenAI key", "Use your own OpenAI API key"})
+
+
 def render_usage_mode_setup() -> None:
     """
     Configuration block for Demo vs BYO. Apply performs a full workspace reset
@@ -72,14 +75,15 @@ def render_usage_mode_setup() -> None:
     )
 
     sb.radio(
-        "Usage mode",
+        "Access",
         options=list(_MODE_LABELS),
         key="um_draft_radio",
-        help="Demo uses the server-configured key. BYO uses your key for this session only.",
+        help="Demo access uses the app owner's configured key. Your own key is session-only.",
+        label_visibility="collapsed",
     )
 
     draft_label = str(st.session_state.get("um_draft_radio") or _MODE_LABELS[0])
-    byo_selected = draft_label == _MODE_LABELS[1]
+    byo_selected = draft_label in _BYO_LABELS
 
     if byo_selected:
         show = sb.checkbox("Show key", value=False, key="ia_byo_show_key")
@@ -98,9 +102,7 @@ def render_usage_mode_setup() -> None:
     _render_applied_status(applied, hint)
 
     if applied == UsageMode.DEMO.value and not demo_mode_backend_key_configured():
-        sb.warning(
-            "Demo mode requires **OPENAI_API_KEY** on the server. Set it in `.env` or the environment."
-        )
+        sb.info("Demo access is enabled when the app owner has configured an API key.")
 
     has_work = session_has_ephemeral_work(st.session_state)
     if has_work:
@@ -109,9 +111,9 @@ def render_usage_mode_setup() -> None:
             key="ia_usage_ack_reset",
         )
 
-    if sb.button("Apply usage mode", use_container_width=True, type="primary", key="um_apply_btn"):
+    if sb.button("Apply", use_container_width=True, type="primary", key="um_apply_btn"):
         choice = str(st.session_state.get("um_draft_radio") or _MODE_LABELS[0])
-        want_byo = choice == _MODE_LABELS[1]
+        want_byo = choice in _BYO_LABELS
         next_mode = UsageMode.BYO if want_byo else UsageMode.DEMO
 
         if session_has_ephemeral_work(st.session_state) and not st.session_state.get(
@@ -147,7 +149,7 @@ def _finalize_apply(
     session_state.pop("ia_usage_ack_reset", None)
 
     if next_mode == UsageMode.DEMO:
-        st.toast("Started a new session in Demo mode.")
+        st.toast("Started a new session with demo access.")
     else:
         st.toast("Started a new session using your API key.")
 

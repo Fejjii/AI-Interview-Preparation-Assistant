@@ -12,7 +12,7 @@ import html
 
 import streamlit as st
 
-from interview_app.app.ui_settings import UISettings, label_for_prompt_strategy
+from interview_app.app.ui_settings import UISettings
 from interview_app.llm.model_settings import sidebar_label_for_preset
 
 _FONT_IMPORT = """<style>
@@ -86,17 +86,17 @@ _LIGHT_VARS = """
 """
 
 _DARK_VARS = """
-    --bg-primary: #0c1222;
-    --bg-secondary: #141c2f;
-    --bg-tertiary: #1e293b;
-    --bg-card: #151d30;
-    --bg-sidebar: #0a0f1a;
-    --bg-input: #1a2438;
-    --text-primary: #f8fafc;
-    --text-secondary: #e2e8f0;
-    --text-tertiary: #b6c4d8;
-    --border-primary: #3d4d66;
-    --border-secondary: #2a3548;
+    --bg-primary: #111827;
+    --bg-secondary: #1a2332;
+    --bg-tertiary: #243044;
+    --bg-card: #1a2332;
+    --bg-sidebar: #0f1520;
+    --bg-input: #1e293b;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --border-primary: #334155;
+    --border-secondary: #243044;
     --accent: #2dd4bf;
     --accent-light: #5eead4;
     --accent-bg: rgba(45,212,191,0.14);
@@ -114,8 +114,8 @@ _DARK_VARS = """
     --card-gradient: linear-gradient(135deg, rgba(45,212,191,0.07), rgba(15,118,110,0.04));
     --surface: #151d30;
     --surface-alt: #1a2438;
-    --text-muted: #9eb0c9;
-    --border: #3d4d66;
+    --text-muted: #94a3b8;
+    --border: #334155;
     --accent-foreground: #042f2e;
     --input-background: #1a2438;
     --input-foreground: #f8fafc;
@@ -127,9 +127,9 @@ _DARK_VARS = """
     --st-input-border-focus: #2dd4bf;
     --st-input-text: #f8fafc;
     --st-placeholder: #a3b4cc;
-    --st-label: #e8edf7;
-    --st-caption: #b4c2d9;
-    --st-muted: #a8b9cc;
+    --st-label: #e2e8f0;
+    --st-caption: #cbd5e1;
+    --st-muted: #94a3b8;
     --st-dropdown-bg: #1a2438;
     --st-dropdown-border: #4b5e78;
     --st-dropdown-hover: #243047;
@@ -142,7 +142,7 @@ _DARK_VARS = """
     --st-focus-ring: rgba(45,212,191,0.5);
     --st-chat-user-bg: rgba(45,212,191,0.12);
     --st-chat-assistant-bg: #141c2f;
-    --st-tab-inactive: #b4c2d9;
+    --st-tab-inactive: #cbd5e1;
     --st-tab-active: #f8fafc;
     --st-tab-hover-bg: rgba(45,212,191,0.12);
     --st-btn-disabled-bg: #283548;
@@ -331,7 +331,12 @@ div[data-baseweb="popover"] [role="option"] span {
     color: var(--text-primary) !important;
 }
 
-/* ----- Radio (workspace) ----- */
+/* ----- Radio (sidebar access mode + workspace) ----- */
+[data-testid="stSidebar"] [data-testid="stRadio"] label,
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label,
+[data-testid="stSidebar"] [data-testid="stRadio"] span {
+    color: var(--st-label) !important;
+}
 [data-testid="stMain"] [data-testid="stRadio"] label,
 [data-testid="stMain"] [data-testid="stRadio"] div[role="radiogroup"] label {
     color: var(--st-label) !important;
@@ -424,8 +429,9 @@ div[data-baseweb="popover"] [role="option"] span {
 [data-testid="stMain"] [data-testid="stButtonGroup"] {
     background-color: var(--st-segmented-track-bg) !important;
     border: 1px solid var(--st-btn-secondary-border) !important;
-    border-radius: var(--radius-lg) !important;
-    padding: 0.2rem !important;
+    border-radius: var(--radius-md) !important;
+    padding: 0.15rem !important;
+    min-height: unset !important;
 }
 [data-testid="stSidebar"] [data-testid="stButtonGroup"] button,
 [data-testid="stMain"] [data-testid="stButtonGroup"] button {
@@ -435,6 +441,9 @@ div[data-baseweb="popover"] [role="option"] span {
     border: 1px solid transparent !important;
     -webkit-text-fill-color: var(--st-tab-inactive) !important;
     font-weight: 500 !important;
+    font-size: 0.82rem !important;
+    padding: 0.35rem 0.5rem !important;
+    min-height: 2rem !important;
 }
 [data-testid="stSidebar"] [data-testid="stButtonGroup"] button:hover:not(:disabled),
 [data-testid="stMain"] [data-testid="stButtonGroup"] button:hover:not(:disabled) {
@@ -468,12 +477,18 @@ div[data-baseweb="popover"] [role="option"] span {
 [data-testid="stBottomBlockContainer"],
 [data-testid="stBottom"],
 section[data-testid="stBottom"],
-[data-testid="stBottom"] > div,
+[data-testid="stBottom"] > div {
+    background-color: var(--bg-primary) !important;
+    border-top: none !important;
+    box-shadow: none !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
 [data-testid="stChatInputContainer"] {
     background-color: var(--bg-primary) !important;
-    border-top: 1px solid var(--border-primary) !important;
-    margin-top: 0.75rem !important;
-    padding-top: 0.65rem !important;
+    border-top: none !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0 !important;
 }
 [data-testid="stChatInput"],
 [data-testid="stChatInput"] > div,
@@ -482,13 +497,21 @@ section[data-testid="stBottom"],
 [data-testid="stChatInput"] [data-baseweb="input"] {
     background-color: var(--st-input-bg) !important;
     color: var(--st-input-text) !important;
-    border-color: var(--st-input-border) !important;
-    border-radius: var(--radius-md) !important;
+    border: 1px solid var(--st-input-border) !important;
+    border-radius: var(--radius-lg) !important;
     min-height: 2.75rem !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
     color: var(--st-placeholder) !important;
     opacity: 1 !important;
+}
+/* Remove duplicate dividers above chat input */
+[data-testid="stMain"] [data-testid="stChatInputContainer"] ~ hr,
+[data-testid="stMain"] [data-testid="stChatInputContainer"] + hr,
+[data-testid="stMain"] .st-key-mock_interview_export_download ~ hr,
+[data-testid="stMain"] .ia-chat-panel + hr {
+    display: none !important;
 }
 
 /* ----- Chat transcript (markdown inside bubbles) ----- */
@@ -562,11 +585,14 @@ html, body, [data-testid="stAppViewContainer"] {{
 }}
 h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
 .block-container {{
-    padding-top: 1rem !important;
-    padding-bottom: 2rem !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 1.75rem !important;
     max-width: min(1200px, 96vw) !important;
     margin-left: auto !important;
     margin-right: auto !important;
+}}
+.ia-workspace-stack {{
+    margin-top: 0.15rem;
 }}
 [data-testid="stMain"] {{ background-color: var(--bg-primary) !important; }}
 [data-testid="stSidebar"] {{
@@ -585,8 +611,8 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     box-shadow: var(--shadow-sm);
 }}
 .ia-hero-compact {{
-    padding: 0.85rem 1.1rem !important;
-    margin-bottom: 0.75rem !important;
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 0.45rem !important;
 }}
 .ia-hero-title {{
     font-size: 1.85rem !important;
@@ -614,9 +640,9 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
 .ia-config-card {{
     background: var(--bg-card);
     border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    padding: 0.85rem 1rem 1rem 1rem;
-    margin-bottom: 1.25rem;
+    border-radius: var(--radius-md);
+    padding: 0.65rem 0.85rem 0.55rem 0.85rem;
+    margin-bottom: 0.55rem;
     box-shadow: var(--shadow-sm);
 }}
 .ia-config-card-header {{
@@ -625,25 +651,65 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-tertiary);
-    margin: 0 0 0.65rem 0;
+    margin: 0 0 0.45rem 0;
 }}
 .ia-config-chips {{
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.4rem;
 }}
 .ia-pill {{
     display: inline-flex;
     align-items: center;
-    padding: 0.28rem 0.72rem;
+    padding: 0.22rem 0.62rem;
     border-radius: 999px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 500;
     color: var(--text-primary);
     background: var(--bg-secondary);
     border: 1px solid var(--border-primary);
     max-width: 100%;
+    line-height: 1.35;
+}}
+.ia-config-tech {{
+    margin-top: 0.45rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--border-secondary);
+}}
+.ia-config-tech summary {{
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    user-select: none;
+    padding: 0.15rem 0;
+}}
+.ia-config-tech summary::-webkit-details-marker {{
+    display: none;
+}}
+.ia-config-tech summary::before {{
+    content: "▸";
+    display: inline-block;
+    margin-right: 0.35rem;
+    color: var(--text-tertiary);
+    transition: transform 0.15s ease;
+}}
+.ia-config-tech[open] summary::before {{
+    transform: rotate(90deg);
+}}
+.ia-config-tech[open] summary {{
+    color: var(--text-primary);
+    margin-bottom: 0.35rem;
+}}
+.ia-config-chips-tech {{
+    padding-bottom: 0.15rem;
+}}
+.ia-config-chips-tech .ia-pill {{
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
 }}
 .ia-workspace-nav-label {{
     font-size: 0.72rem;
@@ -651,10 +717,54 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--st-caption);
-    margin: 0.25rem 0 0.5rem 0;
+    margin: 0 0 0.35rem 0;
+}}
+.ia-workspace-nav {{
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: 0.25rem 0.35rem;
+    margin-bottom: 0.5rem;
+}}
+.ia-workspace-nav [data-testid="stButtonGroup"] {{
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+}}
+.ia-session-card {{
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow-sm);
+}}
+.ia-session-status {{
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0;
+    padding-top: 0.35rem;
+}}
+.ia-chat-panel {{
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1rem 1rem 1rem;
+    margin-bottom: 0.5rem;
+    min-height: 12rem;
+}}
+.ia-chat-panel [data-testid="stChatMessage"] {{
+    margin-bottom: 0.65rem;
+}}
+.ia-instruction-hint {{
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
 }}
 .ia-section-head {{
-    margin: 0 0 1.15rem 0;
+    margin: 0 0 0.75rem 0;
 }}
 .ia-section-title {{
     font-size: 1.28rem !important;
@@ -722,6 +832,30 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     border-color: var(--border-primary) !important;
     padding: 0.95rem 1.05rem 1rem 1.05rem !important;
     margin-bottom: 0.75rem !important;
+}}
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] {{
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+}}
+[data-testid="stMain"] .st-key-ia_workspace_tab {{
+    margin-bottom: 0.35rem;
+}}
+[data-testid="stMain"] [data-testid="stVerticalBlock"]:has(.st-key-ia_workspace_tab) [data-testid="stVerticalBlockBorderWrapper"] {{
+    padding: 0.25rem 0.35rem !important;
+    margin-bottom: 0.5rem !important;
+    background: var(--bg-secondary) !important;
+}}
+[data-testid="stMain"] .ia-session-card[data-testid="stVerticalBlockBorderWrapper"] {{
+    padding: 0.65rem 0.85rem !important;
+    margin-bottom: 0.75rem !important;
+    background: var(--bg-card) !important;
+}}
+[data-testid="stMain"] .ia-chat-panel[data-testid="stVerticalBlockBorderWrapper"] {{
+    padding: 0.75rem 1rem 1rem 1rem !important;
+    margin-bottom: 0.5rem !important;
+    background: var(--bg-card) !important;
+    min-height: 12rem;
 }}
 [data-testid="stMain"] div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stHorizontalBlock"] button {{
     font-size: 0.92rem !important;
@@ -856,6 +990,13 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     font-weight: 800;
     color: var(--accent);
 }}
+.eval-score-label {{
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}}
 [data-testid="stMetric"] {{
     background: var(--bg-card);
     border: 1px solid var(--border-primary);
@@ -949,36 +1090,37 @@ def _pill(text: str) -> str:
 
 def render_configuration_pill_bar(*, settings: UISettings) -> str:
     """
-    Compact horizontal summary of active interview configuration (main area, top of workspace).
+    Compact recruiter-friendly setup summary (main area, top of workspace).
+
+    Shows role context by default; model sampling lives in a collapsed
+    ``<details>`` block for technical reviewers.
     """
-    mode = settings.question_difficulty_mode
-    diff_note = (
-        f"Calibrated · {settings.effective_question_difficulty}"
-        if mode == "Auto"
-        else f"{mode} · {settings.effective_question_difficulty}"
-    )
     if settings.usage_mode == "byo":
-        usage_pill = "Usage · Personal API key"
+        usage_pill = "Personal API key"
     else:
-        usage_pill = "Usage · Demo"
-    parts = [
-        '<div class="ia-config-card" aria-label="Current setup summary">',
-        '<div class="ia-config-card-header">Current Setup</div>',
-        '<div class="ia-config-chips">',
+        usage_pill = "Demo access"
+
+    role_label = (settings.role_title or "").strip() or "Set role title"
+    visible_pills = [
         _pill(usage_pill),
-        _pill(settings.role_category),
-        _pill(settings.role_title or "Role title"),
+        _pill(role_label),
         _pill(settings.seniority),
         _pill(settings.interview_round),
         _pill(settings.interview_focus),
-        _pill(settings.persona),
-        _pill(f"Prompt · {label_for_prompt_strategy(settings.prompt_strategy)}"),
-        _pill(diff_note),
+    ]
+    technical_pills = [
         _pill(sidebar_label_for_preset(settings.model_preset)),
         _pill(f"Temperature · {settings.temperature:.2f}"),
         _pill(f"Top P · {settings.top_p:.2f}"),
-        _pill(f"Max Tokens · {settings.max_tokens}"),
-        "</div>",
-        "</div>",
+        _pill(f"Max tokens · {settings.max_tokens}"),
     ]
-    return "".join(parts)
+    return (
+        '<div class="ia-config-card" aria-label="Current setup summary">'
+        '<div class="ia-config-card-header">Current Setup</div>'
+        f'<div class="ia-config-chips">{"".join(visible_pills)}</div>'
+        '<details class="ia-config-tech">'
+        "<summary>Technical settings</summary>"
+        f'<div class="ia-config-chips ia-config-chips-tech">{"".join(technical_pills)}</div>'
+        "</details>"
+        "</div>"
+    )

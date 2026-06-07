@@ -50,11 +50,10 @@ def render_workspace_navigation(tab_labels: list[str]) -> None:
             label_visibility="collapsed",
             width="stretch",
         )
-    st.divider()
 
 
 def render_configuration_summary_bar(settings: UISettings) -> None:
-    """Compact read-only strip of active setup (replaces the old right column)."""
+    """Compact read-only strip of active setup (recruiter-friendly, technical details collapsed)."""
     st.markdown(
         render_configuration_pill_bar(settings=settings),
         unsafe_allow_html=True,

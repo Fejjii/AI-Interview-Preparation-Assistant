@@ -24,64 +24,78 @@ from interview_app.utils.mock_interview_export import (
 
 
 def _render_session_row_compact(settings: UISettings) -> None:
-    """Session name, save, new—aligned row above chat."""
+    """Session name, save, new, export — compact card above chat."""
     messages = get_messages()
     session_id = st.session_state.get("current_session_id")
     status = "Saved" if session_id else ("In progress" if messages else "New session")
+    can_save = bool(messages)
 
-    c0, c1, c2, c3, c4 = st.columns([2, 2, 1, 1, 1])
-    with c0:
-        st.caption(f"**Session** · {status}")
-    with c1:
-        session_title = st.text_input(
-            "Session name",
-            placeholder="e.g. Backend practice",
-            key="session_title",
-            label_visibility="collapsed",
-        )
-    with c2:
-        if st.button("Save", use_container_width=True, type="primary", key="main_save_session"):
-            if not messages:
-                st.warning("No messages to save yet.")
-            else:
-                meta = snapshot_meta_from_settings(
-                    settings,
-                    session_id,
-                    title=session_title or "Untitled session",
-                )
-                msgs = [m.model_dump(exclude_none=True) for m in messages]
-                sid = save_session(
-                    session_id,
-                    meta,
-                    msgs,
-                    title=session_title or "Untitled session",
-                    session_state=dict(st.session_state),
-                )
-                st.session_state.current_session_id = sid
-                st.toast(f"Saved as \"{session_title or 'Untitled'}\"")
+    with st.container(border=True):
+        c0, c1, c2, c3, c4 = st.columns([1.2, 2.2, 1, 1, 1.1])
+        with c0:
+            st.markdown(
+                f'<p class="ia-session-status">Session · {status}</p>',
+                unsafe_allow_html=True,
+            )
+        with c1:
+            st.text_input(
+                "Session name",
+                placeholder="e.g. Backend practice",
+                key="session_title",
+                label_visibility="collapsed",
+            )
+        with c2:
+            if st.button(
+                "Save",
+                use_container_width=True,
+                type="primary",
+                key="main_save_session",
+                disabled=not can_save,
+            ):
+                if not messages:
+                    st.warning("No messages to save yet.")
+                else:
+                    session_title = str(st.session_state.get("session_title") or "")
+                    meta = snapshot_meta_from_settings(
+                        settings,
+                        session_id,
+                        title=session_title or "Untitled session",
+                    )
+                    msgs = [m.model_dump(exclude_none=True) for m in messages]
+                    sid = save_session(
+                        session_id,
+                        meta,
+                        msgs,
+                        title=session_title or "Untitled session",
+                        session_state=dict(st.session_state),
+                    )
+                    st.session_state.current_session_id = sid
+                    st.toast(f'Saved as "{session_title or "Untitled"}"')
+                    st.rerun()
+        with c3:
+            if st.button("New chat", use_container_width=True, key="main_new_session"):
+                clear_messages()
+                st.session_state.current_session_id = None
+                st.session_state.session_meta = None
                 st.rerun()
-    with c3:
-        if st.button("New chat", use_container_width=True, key="main_new_session"):
-            clear_messages()
-            st.session_state.current_session_id = None
-            st.session_state.session_meta = None
-            st.rerun()
-    with c4:
-        export_payload = build_mock_interview_export_payload(
-            settings=settings,
-            messages=messages,
-            session_title=str(st.session_state.get("session_title") or ""),
-        )
-        st.download_button(
-            label="Export JSON",
-            data=json.dumps(export_payload, indent=2, ensure_ascii=False),
-            file_name=mock_interview_export_filename(
-                str(st.session_state.get("session_title") or "")
-            ),
-            mime="application/json",
-            key="mock_interview_export_download",
-            help="Download this mock interview as structured JSON (metadata + messages).",
-        )
+        with c4:
+            export_payload = build_mock_interview_export_payload(
+                settings=settings,
+                messages=messages,
+                session_title=str(st.session_state.get("session_title") or ""),
+            )
+            st.download_button(
+                label="Export",
+                data=json.dumps(export_payload, indent=2, ensure_ascii=False),
+                file_name=mock_interview_export_filename(
+                    str(st.session_state.get("session_title") or "")
+                ),
+                mime="application/json",
+                key="mock_interview_export_download",
+                help="Download this mock interview as structured JSON (metadata + messages).",
+                use_container_width=True,
+                disabled=not messages,
+            )
 
 
 def _render_mock_interview_tab(settings: UISettings) -> None:
@@ -93,9 +107,11 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
 
     with st.expander("How to use", expanded=False):
         st.markdown(
-            "Say hello or that you’re ready to begin — the interviewer opens with a short structure line "
-            "and the **first question** immediately. After each substantive answer you get structured feedback "
-            "and a follow-up. Adjust role and round in the sidebar anytime."
+            '<p class="ia-instruction-hint">Say hello or that you’re ready to begin — the interviewer '
+            "opens with a short structure line and the <strong>first question</strong> immediately. "
+            "After each substantive answer you get structured feedback and a follow-up. "
+            "Adjust role and round in the sidebar anytime.</p>",
+            unsafe_allow_html=True,
         )
 
     _render_session_row_compact(settings)
@@ -112,7 +128,7 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
                 with st.chat_message(msg.role):
                     st.markdown(msg.content)
 
-    if prompt := st.chat_input("Your answer or message"):
+    if prompt := st.chat_input("Type your answer or message…"):
         if st.session_state.get("response_language") is None and prompt.strip():
             st.session_state.response_language = detect_language(prompt)
         append_message("user", prompt)
@@ -127,7 +143,7 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
                 )
                 append_message("assistant", result.assistant_message)
                 if result.usage_summary:
-                    st.caption(result.usage_summary)
+                    st.session_state["ia_mock_last_usage"] = result.usage_summary
                 if result.llm_debug is not None:
                     st.session_state["ia_mock_last_llm_debug"] = {
                         "system_prompt": result.llm_debug.system_prompt,
@@ -142,6 +158,11 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
                 append_message("assistant", f"Sorry, {msg}")
                 show_error(title="Chat error", body=msg)
         st.rerun()
+
+    usage = st.session_state.get("ia_mock_last_usage")
+    if usage:
+        with st.expander("Usage details", expanded=False):
+            st.caption(str(usage))
 
     if settings.show_debug:
         dbg = st.session_state.get("ia_mock_last_llm_debug")

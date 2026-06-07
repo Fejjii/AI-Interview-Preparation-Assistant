@@ -44,18 +44,18 @@ def render_sidebar_diagnostics(settings: UISettings) -> None:
 
         usage = settings.usage_mode
         if usage == UsageMode.BYO.value:
-            mode_line = "Bring your own (BYO) API key"
+            mode_line = "Personal API key"
             if settings.byo_key_hint:
                 mode_line += f" — hint: {settings.byo_key_hint}"
         else:
-            mode_line = "Demo mode (server key)"
+            mode_line = "Demo access"
 
         rows: list[tuple[str, str]] = [
             ("App environment", app_settings.app_env),
             ("Model preset", f"{preset_label} (`{resolved_model}`)"),
-            ("Usage mode", mode_line),
+            ("Access mode", mode_line),
             (
-                "Server OPENAI_API_KEY",
+                "Server API key",
                 "Configured" if _server_openai_key_configured() else "Not configured",
             ),
             ("Sessions directory", _sessions_dir_display()),

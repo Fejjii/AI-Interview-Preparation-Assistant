@@ -33,9 +33,9 @@ def init_usage_mode_defaults(session_state: dict[str, Any]) -> None:
         session_state[KEY_USAGE_MODE] = UsageMode.DEMO.value
     if KEY_USAGE_DRAFT_RADIO not in session_state:
         session_state[KEY_USAGE_DRAFT_RADIO] = (
-            "Demo mode"
+            "Demo access"
             if session_state[KEY_USAGE_MODE] == UsageMode.DEMO.value
-            else "Use your own OpenAI API key"
+            else "Use my own OpenAI key"
         )
 
 
@@ -48,7 +48,7 @@ def validate_openai_api_key_format(key: str) -> tuple[bool, str]:
     """
     s = (key or "").strip()
     if not s:
-        return False, "Enter your OpenAI API key, or switch to Demo mode."
+        return False, "Enter your OpenAI API key, or switch to Demo access."
     if not s.startswith("sk-"):
         return False, "OpenAI API keys must start with sk-."
     if len(s) < 20:

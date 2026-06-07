@@ -404,10 +404,14 @@ def show_guardrail_summary(*, guardrails: dict[str, GuardrailResult]) -> None:
     if not flagged:
         return
 
-    with st.expander("Guardrails", expanded=False):
+    with st.expander("Content review", expanded=False):
         for name, res in flagged.items():
-            st.markdown(f"**{name}**")
-            st.code(res.model_dump_json(indent=2), language="json")
+            st.markdown(f"**{name.replace('_', ' ').title()}**")
+            if res.flags:
+                for flag in res.flags:
+                    st.caption(f"• {flag}")
+            else:
+                st.caption("Review recommended.")
 
 
 def show_prompt_debug(

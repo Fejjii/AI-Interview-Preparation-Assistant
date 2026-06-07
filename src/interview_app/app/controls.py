@@ -48,7 +48,7 @@ from interview_app.storage.sessions import (
     list_sessions,
     load_session,
 )
-from interview_app.ui.sidebar_deployment import render_sidebar_deployment
+from interview_app.ui.sidebar_deployment import render_sidebar_deployment_content
 from interview_app.ui.sidebar_diagnostics import render_sidebar_diagnostics
 from interview_app.ui.usage_mode_panel import render_usage_mode_setup
 from interview_app.utils.language import (
@@ -82,8 +82,8 @@ def render_sidebar_configuration() -> UISettings:
     """
     Render the full configuration sidebar and return a frozen `UISettings` snapshot.
 
-    Sections: Deployment, Appearance, Role Information, Interview Setup, Prompt Strategy,
-    Generation (temperature, top-p, max tokens), workspace shortcuts, Saved Sessions.
+    Sections: Session setup, Interview configuration, Advanced settings (collapsed),
+    Saved sessions (collapsed), Diagnostics (collapsed).
     """
     sb = st.sidebar
 
@@ -91,27 +91,10 @@ def render_sidebar_configuration() -> UISettings:
 
     sb.divider()
 
-    # ── Deployment ──
-    render_sidebar_deployment()
-
-    # ── A. Appearance ──
-    _sidebar_section_title("Appearance", "Theme for the workspace.")
-    dark = sb.toggle(
-        "Dark mode",
-        value=st.session_state.get("dark_mode", False),
-        key="dark_mode_toggle",
-        help="Switch between light and dark theme.",
-    )
-    if dark != st.session_state.get("dark_mode", False):
-        st.session_state.dark_mode = dark
-        st.rerun()
-
-    sb.divider()
-
-    # ── B. Role Information ──
+    # ── Interview configuration ──
     _sidebar_section_title(
-        "Role Information",
-        "Target role shapes difficulty, tone, and scenarios.",
+        "Interview configuration",
+        "Target role, interview stage, and response settings.",
     )
     role_category = sb.selectbox(
         "Category",
@@ -138,14 +121,6 @@ def render_sidebar_configuration() -> UISettings:
         height=100,
         placeholder="Paste the job description or key requirements (recommended).",
         help="Optional; strongly recommended for realistic prompts.",
-    )
-
-    sb.divider()
-
-    # ── C. Interview Setup ──
-    _sidebar_section_title(
-        "Interview Setup",
-        "Stage, emphasis, interviewer style, and output language.",
     )
 
     focus_options = build_focus_options(role_category, seniority)
@@ -233,49 +208,154 @@ def render_sidebar_configuration() -> UISettings:
     interview_focus = str(st.session_state.get("interview_focus_sel", focus_options[0]))
     persona = str(st.session_state.get("persona_sel", PERSONA_KEYS[1]))
 
-    sb.divider()
-    _sidebar_section_title(
-        "Prompt Strategy",
-        "How interview questions are generated (Interview Questions tab and mock interview question turns).",
-    )
-    strategy_labels = [lbl for lbl, _ in PROMPT_STRATEGY_OPTIONS]
-    selected_label = sb.selectbox(
-        "Prompt strategy",
-        options=strategy_labels,
-        key="ia_prompt_strategy_select",
-        help="Choose a prompting technique. Use “Compare Prompt Strategies” on the Interview Questions tab to preview several at once.",
-    )
-    prompt_strategy = prompt_strategy_key_from_label(selected_label)
+    with sb.expander("Advanced settings", expanded=False):
+        sb.caption("Appearance, model tuning, and workspace shortcuts.")
+        dark = sb.toggle(
+            "Dark mode",
+            value=st.session_state.get("dark_mode", False),
+            key="dark_mode_toggle",
+            help="Switch between light and dark theme.",
+        )
+        if dark != st.session_state.get("dark_mode", False):
+            st.session_state.dark_mode = dark
+            st.rerun()
 
-    allowed_model_keys = tuple(k for _, k in MODEL_PRESET_SIDEBAR_OPTIONS)
-    if "ia_model_preset_select" not in st.session_state:
-        st.session_state.ia_model_preset_select = DEFAULT_MODEL_PRESET_KEY
+        sb.markdown("**Prompt strategy**")
+        strategy_labels = [lbl for lbl, _ in PROMPT_STRATEGY_OPTIONS]
+        selected_label = sb.selectbox(
+            "Prompt strategy",
+            options=strategy_labels,
+            key="ia_prompt_strategy_select",
+            help="Choose a prompting technique. Use “Compare Prompt Strategies” on the Interview Questions tab to preview several at once.",
+        )
+        prompt_strategy = prompt_strategy_key_from_label(selected_label)
 
-    sb.divider()
-    _sidebar_section_title(
-        "Generation",
-        "Model, sampling parameters, and optional prompt inspection for all LLM calls.",
-    )
-    sb.selectbox(
-        "Model",
-        options=list(allowed_model_keys),
-        key="ia_model_preset_select",
-        format_func=lambda k: MODEL_PRESET_LABELS[k],
-        help="OpenAI model for interview questions, mock interview, feedback, and CV prep.",
-    )
-    model_preset = str(st.session_state.ia_model_preset_select)
+        allowed_model_keys = tuple(k for _, k in MODEL_PRESET_SIDEBAR_OPTIONS)
+        if "ia_model_preset_select" not in st.session_state:
+            st.session_state.ia_model_preset_select = DEFAULT_MODEL_PRESET_KEY
+
+        sb.markdown("**Generation**")
+        sb.selectbox(
+            "Model",
+            options=list(allowed_model_keys),
+            key="ia_model_preset_select",
+            format_func=lambda k: MODEL_PRESET_LABELS[k],
+            help="OpenAI model for interview questions, mock interview, feedback, and CV prep.",
+        )
+        model_preset = str(st.session_state.ia_model_preset_select)
+        if model_preset not in MODEL_PRESETS:
+            model_preset = DEFAULT_MODEL_PRESET_KEY
+            st.session_state.ia_model_preset_select = DEFAULT_MODEL_PRESET_KEY
+
+        tracked = st.session_state.get("_ia_model_preset_track")
+        if tracked != model_preset:
+            preset_cfg = MODEL_PRESETS[model_preset]
+            t_sync, p_sync, m_sync = _session_defaults_for_preset(preset_cfg)
+            st.session_state.ia_gen_temperature = t_sync
+            st.session_state.ia_gen_top_p = p_sync
+            st.session_state.ia_gen_max_tokens = m_sync
+            st.session_state._ia_model_preset_track = model_preset
+
+        preset = MODEL_PRESETS[model_preset]
+        if "ia_gen_temperature" not in st.session_state:
+            t0, p0, m0 = _session_defaults_for_preset(preset)
+            st.session_state.ia_gen_temperature = t0
+        if "ia_gen_top_p" not in st.session_state:
+            _, p0, _ = _session_defaults_for_preset(preset)
+            st.session_state.ia_gen_top_p = p0
+        if "ia_gen_max_tokens" not in st.session_state:
+            _, _, m0 = _session_defaults_for_preset(preset)
+            st.session_state.ia_gen_max_tokens = m0
+
+        sb.checkbox(
+            "Show debug prompts",
+            key="ia_show_debug",
+            help="Show effective system/user prompts and parameters on workspace tabs when available.",
+        )
+        sb.slider(
+            "Temperature",
+            min_value=0.0,
+            max_value=2.0,
+            step=0.05,
+            key="ia_gen_temperature",
+            help="Higher values increase variety; lower values are more focused and deterministic.",
+        )
+        sb.slider(
+            "Top-p",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            key="ia_gen_top_p",
+            help="Nucleus sampling: considers tokens up to this cumulative probability mass.",
+        )
+        sb.number_input(
+            "Max tokens",
+            min_value=1,
+            max_value=32000,
+            step=50,
+            key="ia_gen_max_tokens",
+            help="Upper bound on the length of each model response.",
+        )
+
+        sb.markdown("**Workspace shortcuts**")
+        b1, b2, b3 = sb.columns(3)
+        with b1:
+            if sb.button(
+                "Generate questions",
+                use_container_width=True,
+                key="sb_btn_generate",
+                help="Open Interview Questions and run generation.",
+            ):
+                st.session_state.ia_workspace_tab = WORKSPACE_TAB_LABELS[1]
+                st.session_state.ia_pending_generate = True
+                st.rerun()
+        with b2:
+            if sb.button(
+                "CV prep",
+                use_container_width=True,
+                key="sb_btn_cv",
+                help="Open CV-based interview preparation.",
+            ):
+                st.session_state.ia_workspace_tab = WORKSPACE_TAB_LABELS[2]
+                st.rerun()
+        with b3:
+            if sb.button(
+                "Mock interview",
+                use_container_width=True,
+                key="sb_btn_mock",
+                help="Open the live chat workspace.",
+            ):
+                st.session_state.ia_workspace_tab = WORKSPACE_TAB_LABELS[0]
+                st.rerun()
+
+        if sb.button(
+            "Reset transcript",
+            use_container_width=True,
+            key="sb_btn_reset",
+            help="Clear chat messages; configuration stays as set.",
+        ):
+            clear_messages()
+            st.session_state.current_session_id = None
+            st.session_state.session_meta = None
+            st.toast("Transcript cleared. Sidebar settings are unchanged.")
+            st.rerun()
+
+        with sb.expander("Developer notes", expanded=False):
+            render_sidebar_deployment_content()
+
+    # Resolve prompt strategy / model preset when advanced expander was not opened this run
+    if "ia_prompt_strategy_select" in st.session_state:
+        prompt_strategy = prompt_strategy_key_from_label(
+            str(st.session_state.ia_prompt_strategy_select)
+        )
+    else:
+        strategy_labels = [lbl for lbl, _ in PROMPT_STRATEGY_OPTIONS]
+        prompt_strategy = prompt_strategy_key_from_label(strategy_labels[0])
+
+    model_preset = str(st.session_state.get("ia_model_preset_select", DEFAULT_MODEL_PRESET_KEY))
     if model_preset not in MODEL_PRESETS:
         model_preset = DEFAULT_MODEL_PRESET_KEY
         st.session_state.ia_model_preset_select = DEFAULT_MODEL_PRESET_KEY
-
-    tracked = st.session_state.get("_ia_model_preset_track")
-    if tracked != model_preset:
-        preset_cfg = MODEL_PRESETS[model_preset]
-        t_sync, p_sync, m_sync = _session_defaults_for_preset(preset_cfg)
-        st.session_state.ia_gen_temperature = t_sync
-        st.session_state.ia_gen_top_p = p_sync
-        st.session_state.ia_gen_max_tokens = m_sync
-        st.session_state._ia_model_preset_track = model_preset
 
     preset = MODEL_PRESETS[model_preset]
     if "ia_gen_temperature" not in st.session_state:
@@ -288,86 +368,11 @@ def render_sidebar_configuration() -> UISettings:
         _, _, m0 = _session_defaults_for_preset(preset)
         st.session_state.ia_gen_max_tokens = m0
 
-    sb.checkbox(
-        "Show debug prompts",
-        key="ia_show_debug",
-        help="Show effective system/user prompts and parameters on workspace tabs when available.",
-    )
-    sb.slider(
-        "Temperature",
-        min_value=0.0,
-        max_value=2.0,
-        step=0.05,
-        key="ia_gen_temperature",
-        help="Higher values increase variety; lower values are more focused and deterministic.",
-    )
-    sb.slider(
-        "Top-p",
-        min_value=0.0,
-        max_value=1.0,
-        step=0.01,
-        key="ia_gen_top_p",
-        help="Nucleus sampling: considers tokens up to this cumulative probability mass.",
-    )
-    sb.number_input(
-        "Max tokens",
-        min_value=1,
-        max_value=32000,
-        step=50,
-        key="ia_gen_max_tokens",
-        help="Upper bound on the length of each model response.",
-    )
-
-    sb.divider()
-    sb.caption("Switch workspace or reset the transcript.")
-    b1, b2, b3 = sb.columns(3)
-    with b1:
-        if sb.button(
-            "Generate questions",
-            use_container_width=True,
-            key="sb_btn_generate",
-            help="Open Interview Questions and run generation.",
-        ):
-            st.session_state.ia_workspace_tab = WORKSPACE_TAB_LABELS[1]
-            st.session_state.ia_pending_generate = True
-            st.rerun()
-    with b2:
-        if sb.button(
-            "CV prep",
-            use_container_width=True,
-            key="sb_btn_cv",
-            help="Open CV-based interview preparation.",
-        ):
-            st.session_state.ia_workspace_tab = WORKSPACE_TAB_LABELS[2]
-            st.rerun()
-    with b3:
-        if sb.button(
-            "Mock interview",
-            use_container_width=True,
-            key="sb_btn_mock",
-            help="Open the live chat workspace.",
-        ):
-            st.session_state.ia_workspace_tab = WORKSPACE_TAB_LABELS[0]
-            st.rerun()
-
-    if sb.button(
-        "Reset transcript",
-        use_container_width=True,
-        key="sb_btn_reset",
-        help="Clear chat messages; configuration stays as set.",
-    ):
-        clear_messages()
-        st.session_state.current_session_id = None
-        st.session_state.session_meta = None
-        st.toast("Transcript cleared. Sidebar settings are unchanged.")
-        st.rerun()
-
     sb.divider()
 
-    # ── Saved sessions ──
-    _sidebar_section_title("Saved Sessions", "Reopen a stored mock interview.")
-    _render_sidebar_session_list()
-    _render_sidebar_delete_all_sessions()
+    with sb.expander("Saved sessions", expanded=False):
+        _render_sidebar_session_list()
+        _render_sidebar_delete_all_sessions()
 
     response_language = st.session_state.get("response_language") or DEFAULT_LANGUAGE
     _, role_title_trimmed = validate_role_title(role_title_raw)
@@ -433,23 +438,22 @@ def _clear_session_if_deleted(deleted_id: str) -> None:
 
 
 def _render_sidebar_session_list() -> None:
-    sb = st.sidebar
     sessions = list_sessions(dict(st.session_state))
     if not sessions:
-        sb.caption("No saved sessions yet.")
+        st.caption("No saved sessions yet.")
         return
 
     for s in sessions[:10]:
         sid = s.get("id", "")
         title = s.get("title", "Untitled")
         created = _format_ts(s.get("created_at", ""))
-        col_a, col_b, col_c = sb.columns([2, 1, 1])
+        col_a, col_b, col_c = st.columns([2, 1, 1])
         with col_a:
-            sb.caption(f"**{title}**")
+            st.caption(f"**{title}**")
             if created:
-                sb.caption(created)
+                st.caption(created)
         with col_b:
-            if sb.button("Open", key=f"sb_open_{sid}", use_container_width=True):
+            if st.button("Open", key=f"sb_open_{sid}", use_container_width=True):
                 loaded = load_session(sid, dict(st.session_state))
                 if loaded:
                     meta, messages = loaded
@@ -459,10 +463,10 @@ def _render_sidebar_session_list() -> None:
                     st.toast("Session loaded. Open Mock Interview to continue.")
                     st.rerun()
                 else:
-                    st.sidebar.error("**Load failed**")
-                    st.sidebar.caption(f"Could not load session {sid}.")
+                    st.error("**Load failed**")
+                    st.caption(f"Could not load session {sid}.")
         with col_c:
-            if sb.button(
+            if st.button(
                 "Del",
                 key=f"sb_del_{sid}",
                 use_container_width=True,
@@ -473,14 +477,11 @@ def _render_sidebar_session_list() -> None:
                     st.toast("Session deleted.")
                     st.rerun()
                 else:
-                    st.sidebar.warning(
-                        "Could not delete this session (file missing or not removable)."
-                    )
+                    st.warning("Could not delete this session (file missing or not removable).")
 
 
 def _render_sidebar_delete_all_sessions() -> None:
     """Optional bulk delete with a confirmation step."""
-    sb = st.sidebar
     key = "sb_confirm_delete_all"
     if key not in st.session_state:
         st.session_state[key] = False
@@ -492,10 +493,10 @@ def _render_sidebar_delete_all_sessions() -> None:
         return
 
     if st.session_state[key]:
-        sb.warning("Delete **all** saved sessions? This cannot be undone.")
-        c1, c2 = sb.columns(2)
+        st.warning("Delete **all** saved sessions? This cannot be undone.")
+        c1, c2 = st.columns(2)
         with c1:
-            if sb.button("Confirm", key="sb_del_all_yes", use_container_width=True):
+            if st.button("Confirm", key="sb_del_all_yes", use_container_width=True):
                 n = delete_all_sessions(dict(st.session_state))
                 st.session_state[key] = False
                 st.session_state.current_session_id = None
@@ -504,12 +505,12 @@ def _render_sidebar_delete_all_sessions() -> None:
                 st.toast(f"Deleted {n} session(s).")
                 st.rerun()
         with c2:
-            if sb.button("Cancel", key="sb_del_all_no", use_container_width=True):
+            if st.button("Cancel", key="sb_del_all_no", use_container_width=True):
                 st.session_state[key] = False
                 st.rerun()
         return
 
-    if sb.button(
+    if st.button(
         "Delete all sessions",
         key="sb_del_all_start",
         use_container_width=True,
