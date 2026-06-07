@@ -31,7 +31,7 @@ def _render_session_row_compact(settings: UISettings) -> None:
     can_save = bool(messages)
 
     with st.container(border=True):
-        c0, c1, c2, c3, c4 = st.columns([1.2, 2.2, 1, 1, 1.1])
+        c0, c1, c2, c3, c4 = st.columns([1, 2.2, 0.75, 0.85, 0.95], gap="small")
         with c0:
             st.markdown(
                 f'<p class="ia-session-status">Session · {status}</p>',
@@ -85,7 +85,7 @@ def _render_session_row_compact(settings: UISettings) -> None:
                 session_title=str(st.session_state.get("session_title") or ""),
             )
             st.download_button(
-                label="Export",
+                label="Export JSON",
                 data=json.dumps(export_payload, indent=2, ensure_ascii=False),
                 file_name=mock_interview_export_filename(
                     str(st.session_state.get("session_title") or "")

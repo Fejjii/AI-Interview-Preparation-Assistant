@@ -34,21 +34,19 @@ def render_hero_header() -> None:
 
 def render_workspace_navigation(tab_labels: list[str]) -> None:
     """
-    Primary workspace navigation (`st.segmented_control`).
+    Primary workspace navigation (horizontal ``st.radio`` styled as tabs).
 
     Uses session key ``ia_workspace_tab`` so sidebar shortcuts stay in sync.
-    Segmented control renders with ``stButtonGroup`` and respects the app theme
-    better than separate secondary ``st.button`` widgets (Streamlit 1.55+).
+    Horizontal radio is more reliably themeable than ``st.segmented_control`` on Streamlit Cloud.
     """
     st.markdown('<div class="ia-workspace-nav-label">Workspace</div>', unsafe_allow_html=True)
     with st.container(border=True):
-        st.segmented_control(
+        st.radio(
             "Workspace",
             options=tab_labels,
-            selection_mode="single",
             key="ia_workspace_tab",
+            horizontal=True,
             label_visibility="collapsed",
-            width="stretch",
         )
 
 

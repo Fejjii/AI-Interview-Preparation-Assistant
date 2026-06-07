@@ -20,6 +20,10 @@ _FONT_IMPORT = """<style>
 </style>"""
 
 _LIGHT_VARS = """
+    --background-color: #ffffff;
+    --secondary-background-color: #f8fafc;
+    --text-color: #0f172a;
+    --primary-color: #0f766e;
     --bg-primary: #ffffff;
     --bg-secondary: #f8fafc;
     --bg-tertiary: #f1f5f9;
@@ -83,9 +87,16 @@ _LIGHT_VARS = """
     --st-btn-disabled-text: #475569;
     --st-btn-disabled-border: #cbd5e1;
     --st-segmented-track-bg: #f1f5f9;
+    --st-segmented-inactive-text: #64748b;
+    --st-chat-composer-border: #cbd5e1;
+    --st-chat-placeholder: #64748b;
 """
 
 _DARK_VARS = """
+    --background-color: #111827;
+    --secondary-background-color: #1a2332;
+    --text-color: #f1f5f9;
+    --primary-color: #2dd4bf;
     --bg-primary: #111827;
     --bg-secondary: #1a2332;
     --bg-tertiary: #243044;
@@ -142,13 +153,16 @@ _DARK_VARS = """
     --st-focus-ring: rgba(45,212,191,0.5);
     --st-chat-user-bg: rgba(45,212,191,0.12);
     --st-chat-assistant-bg: #141c2f;
-    --st-tab-inactive: #cbd5e1;
-    --st-tab-active: #f8fafc;
-    --st-tab-hover-bg: rgba(45,212,191,0.12);
-    --st-btn-disabled-bg: #283548;
-    --st-btn-disabled-text: #d1dae8;
-    --st-btn-disabled-border: #4b5e78;
-    --st-segmented-track-bg: #1a2438;
+    --st-tab-inactive: #e2e8f0;
+    --st-tab-active: #ffffff;
+    --st-tab-hover-bg: rgba(45,212,191,0.18);
+    --st-btn-disabled-bg: #3d4f63;
+    --st-btn-disabled-text: #e8edf4;
+    --st-btn-disabled-border: #5a6d85;
+    --st-segmented-track-bg: #243044;
+    --st-segmented-inactive-text: #e2e8f0;
+    --st-chat-composer-border: #5a6d85;
+    --st-chat-placeholder: #b8c9dc;
 """
 
 
@@ -164,7 +178,7 @@ def _streamlit_widget_overrides() -> str:
 /* ----- Typography: labels, captions, help (sidebar + main) ----- */
 [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
 [data-testid="stSidebar"] [data-testid="stWidgetLabel"] label,
-[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] label:not([data-baseweb="radio"]),
 [data-testid="stMain"] [data-testid="stWidgetLabel"] p,
 [data-testid="stMain"] [data-testid="stWidgetLabel"] label,
 [data-testid="stMain"] label:not([data-baseweb="radio"]) {
@@ -332,14 +346,49 @@ div[data-baseweb="popover"] [role="option"] span {
 }
 
 /* ----- Radio (sidebar access mode + workspace) ----- */
-[data-testid="stSidebar"] [data-testid="stRadio"] label,
-[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label,
-[data-testid="stSidebar"] [data-testid="stRadio"] span {
+[data-testid="stSidebar"] [data-testid="stRadio"],
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"],
+[data-testid="stSidebar"] .st-key-um_draft_radio [data-testid="stRadio"] {
     color: var(--st-label) !important;
 }
-[data-testid="stMain"] [data-testid="stRadio"] label,
-[data-testid="stMain"] [data-testid="stRadio"] div[role="radiogroup"] label {
+[data-testid="stSidebar"] [data-testid="stRadio"] label,
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label,
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > label,
+[data-testid="stSidebar"] [data-testid="stRadio"] label p,
+[data-testid="stSidebar"] [data-testid="stRadio"] label span,
+[data-testid="stSidebar"] [data-testid="stRadio"] label div,
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] + div,
+[data-testid="stSidebar"] .st-key-um_draft_radio label,
+[data-testid="stSidebar"] .st-key-um_draft_radio label p,
+[data-testid="stSidebar"] .st-key-um_draft_radio label span,
+[data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label,
+[data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label * {
     color: var(--st-label) !important;
+    -webkit-text-fill-color: var(--st-label) !important;
+    opacity: 1 !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"],
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked),
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label:has([aria-checked="true"]) {
+    color: var(--st-input-text) !important;
+    -webkit-text-fill-color: var(--st-input-text) !important;
+    font-weight: 600 !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] {
+    border-color: var(--st-input-border) !important;
+    background-color: var(--st-input-bg) !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"][aria-checked="true"],
+[data-testid="stSidebar"] [data-testid="stRadio"] input:checked + div {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+[data-testid="stMain"] [data-testid="stRadio"] label,
+[data-testid="stMain"] [data-testid="stRadio"] div[role="radiogroup"] label,
+[data-testid="stMain"] [data-testid="stRadio"] label p,
+[data-testid="stMain"] [data-testid="stRadio"] label span {
+    color: var(--st-label) !important;
+    -webkit-text-fill-color: var(--st-label) !important;
 }
 [data-testid="stMain"] [data-testid="stRadio"] [data-baseweb="radio"] {
     color: var(--accent) !important;
@@ -414,7 +463,13 @@ div[data-baseweb="popover"] [role="option"] span {
 [data-testid="stSidebar"] .stButton > button:disabled,
 [data-testid="stMain"] .stButton > button:disabled,
 [data-testid="stSidebar"] [data-testid="stDownloadButton"] button:disabled,
-[data-testid="stMain"] [data-testid="stDownloadButton"] button:disabled {
+[data-testid="stMain"] [data-testid="stDownloadButton"] button:disabled,
+[data-testid="stSidebar"] button[disabled],
+[data-testid="stMain"] button[disabled],
+[data-testid="stSidebar"] [data-testid="stDownloadButton"] button[disabled],
+[data-testid="stMain"] [data-testid="stDownloadButton"] button[disabled],
+[data-testid="stSidebar"] button[aria-disabled="true"],
+[data-testid="stMain"] button[aria-disabled="true"] {
     opacity: 1 !important;
     filter: none !important;
     cursor: not-allowed !important;
@@ -423,10 +478,34 @@ div[data-baseweb="popover"] [role="option"] span {
     border-color: var(--st-btn-disabled-border) !important;
     -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
 }
+[data-testid="stSidebar"] button:disabled *,
+[data-testid="stMain"] button:disabled *,
+[data-testid="stSidebar"] [data-testid="stDownloadButton"] button:disabled *,
+[data-testid="stMain"] [data-testid="stDownloadButton"] button:disabled * {
+    color: var(--st-btn-disabled-text) !important;
+    -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
+    opacity: 1 !important;
+}
+[data-testid="stMain"] .st-key-main_save_session button:disabled,
+[data-testid="stMain"] .st-key-main_save_session button[disabled],
+[data-testid="stMain"] .st-key-mock_interview_export_download button:disabled,
+[data-testid="stMain"] .st-key-mock_interview_export_download button[disabled] {
+    background-color: var(--st-btn-disabled-bg) !important;
+    color: var(--st-btn-disabled-text) !important;
+    border-color: var(--st-btn-disabled-border) !important;
+    -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
+}
+[data-testid="stMain"] .st-key-main_save_session button:disabled *,
+[data-testid="stMain"] .st-key-mock_interview_export_download button:disabled * {
+    color: var(--st-btn-disabled-text) !important;
+    -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
+    opacity: 1 !important;
+}
 
 /* ----- Segmented control (st.segmented_control → stButtonGroup) ----- */
 [data-testid="stSidebar"] [data-testid="stButtonGroup"],
-[data-testid="stMain"] [data-testid="stButtonGroup"] {
+[data-testid="stMain"] [data-testid="stButtonGroup"],
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] {
     background-color: var(--st-segmented-track-bg) !important;
     border: 1px solid var(--st-btn-secondary-border) !important;
     border-radius: var(--radius-md) !important;
@@ -434,25 +513,44 @@ div[data-baseweb="popover"] [role="option"] span {
     min-height: unset !important;
 }
 [data-testid="stSidebar"] [data-testid="stButtonGroup"] button,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button {
+[data-testid="stMain"] [data-testid="stButtonGroup"] button,
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button {
     background-color: transparent !important;
     background-image: none !important;
-    color: var(--st-tab-inactive) !important;
+    color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
     border: 1px solid transparent !important;
-    -webkit-text-fill-color: var(--st-tab-inactive) !important;
+    -webkit-text-fill-color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
     font-weight: 500 !important;
     font-size: 0.82rem !important;
     padding: 0.35rem 0.5rem !important;
     min-height: 2rem !important;
 }
+[data-testid="stSidebar"] [data-testid="stButtonGroup"] button p,
+[data-testid="stSidebar"] [data-testid="stButtonGroup"] button span,
+[data-testid="stSidebar"] [data-testid="stButtonGroup"] button div,
+[data-testid="stMain"] [data-testid="stButtonGroup"] button p,
+[data-testid="stMain"] [data-testid="stButtonGroup"] button span,
+[data-testid="stMain"] [data-testid="stButtonGroup"] button div,
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button p,
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button span,
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button div {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    opacity: 1 !important;
+}
 [data-testid="stSidebar"] [data-testid="stButtonGroup"] button:hover:not(:disabled),
-[data-testid="stMain"] [data-testid="stButtonGroup"] button:hover:not(:disabled) {
+[data-testid="stMain"] [data-testid="stButtonGroup"] button:hover:not(:disabled),
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button:hover:not(:disabled) {
     background-color: var(--st-tab-hover-bg) !important;
     color: var(--st-tab-active) !important;
     -webkit-text-fill-color: var(--st-tab-active) !important;
 }
 [data-testid="stSidebar"] [data-testid="stButtonGroup"] button[aria-checked="true"],
-[data-testid="stMain"] [data-testid="stButtonGroup"] button[aria-checked="true"] {
+[data-testid="stMain"] [data-testid="stButtonGroup"] button[aria-checked="true"],
+[data-testid="stSidebar"] [data-testid="stButtonGroup"] button[aria-pressed="true"],
+[data-testid="stMain"] [data-testid="stButtonGroup"] button[aria-pressed="true"],
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button[aria-checked="true"],
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button[aria-pressed="true"] {
     background-color: var(--st-btn-primary-bg) !important;
     color: var(--st-btn-primary-text) !important;
     border-color: var(--st-btn-primary-bg) !important;
@@ -460,7 +558,8 @@ div[data-baseweb="popover"] [role="option"] span {
     font-weight: 600 !important;
 }
 [data-testid="stSidebar"] [data-testid="stButtonGroup"] button *,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button * {
+[data-testid="stMain"] [data-testid="stButtonGroup"] button *,
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button * {
     color: inherit !important;
     -webkit-text-fill-color: inherit !important;
 }
@@ -470,7 +569,7 @@ div[data-baseweb="popover"] [role="option"] span {
     color: var(--st-btn-disabled-text) !important;
     -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
     border-color: transparent !important;
-    opacity: 0.85 !important;
+    opacity: 1 !important;
 }
 
 /* ----- Chat composer ----- */
@@ -489,22 +588,52 @@ section[data-testid="stBottom"],
     border-top: none !important;
     margin-top: 0.5rem !important;
     padding-top: 0 !important;
+    box-shadow: none !important;
 }
 [data-testid="stChatInput"],
-[data-testid="stChatInput"] > div,
-[data-testid="stChatInput"] textarea,
+[data-testid="stChatInput"] > div {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
 [data-testid="stChatInput"] [data-baseweb="textarea"],
-[data-testid="stChatInput"] [data-baseweb="input"] {
+[data-testid="stChatInput"] [data-baseweb="input"],
+[data-testid="stChatInput"] textarea {
     background-color: var(--st-input-bg) !important;
     color: var(--st-input-text) !important;
-    border: 1px solid var(--st-input-border) !important;
+    border: 1px solid var(--st-chat-composer-border, var(--st-input-border)) !important;
     border-radius: var(--radius-lg) !important;
     min-height: 2.75rem !important;
-    box-shadow: var(--shadow-sm) !important;
+    box-shadow: none !important;
+}
+[data-testid="stChatInput"] [data-baseweb="textarea"]:focus-within,
+[data-testid="stChatInput"] [data-baseweb="input"]:focus-within {
+    border-color: var(--st-input-border-focus) !important;
+    box-shadow: 0 0 0 1px var(--st-focus-ring) !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
-    color: var(--st-placeholder) !important;
+    color: var(--st-chat-placeholder, var(--st-placeholder)) !important;
     opacity: 1 !important;
+}
+[data-testid="stChatInputSubmitButton"],
+[data-testid="stChatInput"] button,
+[data-testid="stChatInput"] [data-testid="stBaseButton-secondary"] {
+    background-color: transparent !important;
+    color: var(--accent) !important;
+    border: none !important;
+    -webkit-text-fill-color: var(--accent) !important;
+    opacity: 0.92 !important;
+}
+[data-testid="stChatInputSubmitButton"]:hover:not(:disabled),
+[data-testid="stChatInput"] button:hover:not(:disabled) {
+    background-color: var(--st-tab-hover-bg) !important;
+    opacity: 1 !important;
+}
+[data-testid="stChatInputSubmitButton"] svg,
+[data-testid="stChatInput"] button svg {
+    fill: var(--accent) !important;
+    color: var(--accent) !important;
 }
 /* Remove duplicate dividers above chat input */
 [data-testid="stMain"] [data-testid="stChatInputContainer"] ~ hr,
@@ -568,11 +697,140 @@ section[data-testid="stBottom"],
 """
 
 
+def _dark_contrast_hardening() -> str:
+    """
+    Literal-color overrides for Streamlit Cloud when host theme wins over :root tokens.
+
+    Scoped under ``stAppViewContainer`` for specificity; only injected in dark mode.
+    """
+    return """
+/* ----- Dark mode contrast hardening ----- */
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label,
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label p,
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label span,
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label div,
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label,
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label * {
+    color: #f1f5f9 !important;
+    -webkit-text-fill-color: #f1f5f9 !important;
+    opacity: 1 !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p,
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
+    opacity: 1 !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label,
+[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label * {
+    color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked),
+[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has([aria-checked="true"]) {
+    color: #f0fdfa !important;
+    -webkit-text-fill-color: #f0fdfa !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stMain"] button:disabled,
+[data-testid="stAppViewContainer"] [data-testid="stMain"] button[disabled],
+[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-main_save_session button:disabled,
+[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-mock_interview_export_download button:disabled {
+    background-color: #3d4f63 !important;
+    color: #e8edf4 !important;
+    border-color: #5a6d85 !important;
+    -webkit-text-fill-color: #e8edf4 !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] textarea,
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] [data-baseweb="textarea"] {
+    border-color: #5a6d85 !important;
+    color: #f8fafc !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] textarea::placeholder {
+    color: #b8c9dc !important;
+    -webkit-text-fill-color: #b8c9dc !important;
+}
+"""
+
+
+def _workspace_tab_radio_css() -> str:
+    """Horizontal ``st.radio`` styled as a workspace tab bar (replaces segmented_control)."""
+    return """
+/* ----- Workspace tab bar (horizontal radio, key ia_workspace_tab) ----- */
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] {
+    width: 100% !important;
+}
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+    gap: 0.3rem !important;
+    width: 100% !important;
+    background: var(--st-segmented-track-bg) !important;
+    border: 1px solid var(--st-btn-secondary-border) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 0.25rem !important;
+}
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label {
+    flex: 1 1 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 0.38rem 0.45rem !important;
+    border-radius: var(--radius-sm) !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
+    -webkit-text-fill-color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
+    font-weight: 500 !important;
+    font-size: 0.82rem !important;
+    cursor: pointer !important;
+}
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label p,
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label span,
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label div {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    opacity: 1 !important;
+}
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:hover {
+    background: var(--st-tab-hover-bg) !important;
+    color: var(--st-tab-active) !important;
+    -webkit-text-fill-color: var(--st-tab-active) !important;
+}
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked),
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has([aria-checked="true"]) {
+    background: var(--st-btn-primary-bg) !important;
+    border-color: var(--st-btn-primary-bg) !important;
+    color: var(--st-btn-primary-text) !important;
+    -webkit-text-fill-color: var(--st-btn-primary-text) !important;
+    font-weight: 600 !important;
+}
+[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [data-baseweb="radio"] {
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+}
+[data-testid="stMain"] [data-testid="stVerticalBlock"]:has(.st-key-ia_workspace_tab) [data-testid="stVerticalBlockBorderWrapper"] {
+    padding: 0.3rem 0.4rem !important;
+    margin-bottom: 0.5rem !important;
+}
+"""
+
+
 def _build_app_css(dark: bool = False) -> str:
     vars_block = _DARK_VARS if dark else _LIGHT_VARS
     streamlit_layer = _streamlit_widget_overrides()
+    workspace_tabs = _workspace_tab_radio_css()
+    dark_patch = _dark_contrast_hardening() if dark else ""
     return f"""<style>
-:root {{
+:root,
+[data-testid="stAppViewContainer"],
+[data-testid="stSidebar"],
+[data-testid="stMain"] {{
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
@@ -744,7 +1002,28 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     font-weight: 600;
     color: var(--text-secondary);
     margin: 0;
-    padding-top: 0.35rem;
+    padding-top: 0.5rem;
+    white-space: nowrap;
+}}
+[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) {{
+    padding: 0.45rem 0.6rem !important;
+    margin-bottom: 0.65rem !important;
+}}
+[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stHorizontalBlock"] {{
+    gap: 0.3rem !important;
+    align-items: center !important;
+}}
+[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="column"] {{
+    min-width: 0 !important;
+}}
+[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stTextInput"] input {{
+    min-height: 2.25rem !important;
+}}
+[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stButton"] button,
+[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stDownloadButton"] button {{
+    min-height: 2.25rem !important;
+    padding: 0.25rem 0.35rem !important;
+    font-size: 0.8rem !important;
 }}
 .ia-chat-panel {{
     background: var(--bg-card);
@@ -824,7 +1103,13 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
 }}
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {{
     font-size: 0.78rem !important;
-    color: var(--text-secondary) !important;
+    color: var(--st-caption) !important;
+    -webkit-text-fill-color: var(--st-caption) !important;
+    opacity: 1 !important;
+}}
+[data-testid="stSidebar"] .st-key-um_draft_radio + [data-testid="stCaptionContainer"] p,
+[data-testid="stSidebar"] .st-key-um_draft_radio ~ [data-testid="stCaptionContainer"] p {{
+    color: var(--st-caption) !important;
 }}
 [data-testid="stMain"] div[data-testid="stVerticalBlockBorderWrapper"] {{
     border-radius: var(--radius-lg) !important;
@@ -1028,6 +1313,8 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     font-weight: 600 !important;
 }}
 {streamlit_layer}
+{workspace_tabs}
+{dark_patch}
 </style>"""
 
 
