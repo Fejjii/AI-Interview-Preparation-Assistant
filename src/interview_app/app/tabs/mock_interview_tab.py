@@ -24,17 +24,21 @@ from interview_app.utils.mock_interview_export import (
 
 
 def _render_session_row_compact(settings: UISettings) -> None:
-    """Session name, save, new, export — compact card above chat."""
+    """Session status, name, save, new chat, export — compact card above chat."""
     messages = get_messages()
     session_id = st.session_state.get("current_session_id")
     status = "Saved" if session_id else ("In progress" if messages else "New session")
     can_save = bool(messages)
 
     with st.container(border=True):
-        c0, c1, c2, c3, c4 = st.columns([1, 2.2, 0.75, 0.85, 0.95], gap="small")
+        st.markdown(
+            '<p class="ia-session-card-header">Session</p>',
+            unsafe_allow_html=True,
+        )
+        c0, c1, c2, c3, c4 = st.columns([1.15, 2.4, 0.85, 0.9, 1.0], gap="small")
         with c0:
             st.markdown(
-                f'<p class="ia-session-status">Session · {status}</p>',
+                f'<p class="ia-session-status">{status}</p>',
                 unsafe_allow_html=True,
             )
         with c1:
@@ -73,7 +77,12 @@ def _render_session_row_compact(settings: UISettings) -> None:
                     st.toast(f'Saved as "{session_title or "Untitled"}"')
                     st.rerun()
         with c3:
-            if st.button("New chat", use_container_width=True, key="main_new_session"):
+            if st.button(
+                "New chat",
+                use_container_width=True,
+                key="main_new_session",
+                type="secondary",
+            ):
                 clear_messages()
                 st.session_state.current_session_id = None
                 st.session_state.session_meta = None

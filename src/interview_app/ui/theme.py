@@ -345,53 +345,19 @@ div[data-baseweb="popover"] [role="option"] span {
     color: var(--text-primary) !important;
 }
 
-/* ----- Radio (sidebar access mode + workspace) ----- */
-[data-testid="stSidebar"] [data-testid="stRadio"],
-[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"],
-[data-testid="stSidebar"] .st-key-um_draft_radio [data-testid="stRadio"] {
+/* ----- Radio (sidebar usage mode only — native circles + labels) ----- */
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label,
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label p,
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label span {
     color: var(--st-label) !important;
-}
-[data-testid="stSidebar"] [data-testid="stRadio"] label,
-[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label,
-[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > label,
-[data-testid="stSidebar"] [data-testid="stRadio"] label p,
-[data-testid="stSidebar"] [data-testid="stRadio"] label span,
-[data-testid="stSidebar"] [data-testid="stRadio"] label div,
-[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] + div,
-[data-testid="stSidebar"] .st-key-um_draft_radio label,
-[data-testid="stSidebar"] .st-key-um_draft_radio label p,
-[data-testid="stSidebar"] .st-key-um_draft_radio label span,
-[data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label,
-[data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label * {
-    color: var(--st-label) !important;
-    -webkit-text-fill-color: var(--st-label) !important;
-    opacity: 1 !important;
-}
-[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"],
-[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked),
-[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label:has([aria-checked="true"]) {
-    color: var(--st-input-text) !important;
-    -webkit-text-fill-color: var(--st-input-text) !important;
-    font-weight: 600 !important;
 }
 [data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] {
     border-color: var(--st-input-border) !important;
     background-color: var(--st-input-bg) !important;
 }
-[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"][aria-checked="true"],
-[data-testid="stSidebar"] [data-testid="stRadio"] input:checked + div {
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"][aria-checked="true"] {
     background-color: var(--accent) !important;
     border-color: var(--accent) !important;
-}
-[data-testid="stMain"] [data-testid="stRadio"] label,
-[data-testid="stMain"] [data-testid="stRadio"] div[role="radiogroup"] label,
-[data-testid="stMain"] [data-testid="stRadio"] label p,
-[data-testid="stMain"] [data-testid="stRadio"] label span {
-    color: var(--st-label) !important;
-    -webkit-text-fill-color: var(--st-label) !important;
-}
-[data-testid="stMain"] [data-testid="stRadio"] [data-baseweb="radio"] {
-    color: var(--accent) !important;
 }
 
 /* ----- Buttons (Streamlit 1.55+ Base Web: `kind` is often NOT on the DOM) ----- */
@@ -488,6 +454,8 @@ div[data-baseweb="popover"] [role="option"] span {
 }
 [data-testid="stMain"] .st-key-main_save_session button:disabled,
 [data-testid="stMain"] .st-key-main_save_session button[disabled],
+[data-testid="stMain"] .st-key-main_new_session button:disabled,
+[data-testid="stMain"] .st-key-main_new_session button[disabled],
 [data-testid="stMain"] .st-key-mock_interview_export_download button:disabled,
 [data-testid="stMain"] .st-key-mock_interview_export_download button[disabled] {
     background-color: var(--st-btn-disabled-bg) !important;
@@ -496,79 +464,10 @@ div[data-baseweb="popover"] [role="option"] span {
     -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
 }
 [data-testid="stMain"] .st-key-main_save_session button:disabled *,
+[data-testid="stMain"] .st-key-main_new_session button:disabled *,
 [data-testid="stMain"] .st-key-mock_interview_export_download button:disabled * {
     color: var(--st-btn-disabled-text) !important;
     -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
-    opacity: 1 !important;
-}
-
-/* ----- Segmented control (st.segmented_control → stButtonGroup) ----- */
-[data-testid="stSidebar"] [data-testid="stButtonGroup"],
-[data-testid="stMain"] [data-testid="stButtonGroup"],
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] {
-    background-color: var(--st-segmented-track-bg) !important;
-    border: 1px solid var(--st-btn-secondary-border) !important;
-    border-radius: var(--radius-md) !important;
-    padding: 0.15rem !important;
-    min-height: unset !important;
-}
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button,
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button {
-    background-color: transparent !important;
-    background-image: none !important;
-    color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
-    border: 1px solid transparent !important;
-    -webkit-text-fill-color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
-    font-weight: 500 !important;
-    font-size: 0.82rem !important;
-    padding: 0.35rem 0.5rem !important;
-    min-height: 2rem !important;
-}
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button p,
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button span,
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button div,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button p,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button span,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button div,
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button p,
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button span,
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button div {
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
-    opacity: 1 !important;
-}
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button:hover:not(:disabled),
-[data-testid="stMain"] [data-testid="stButtonGroup"] button:hover:not(:disabled),
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button:hover:not(:disabled) {
-    background-color: var(--st-tab-hover-bg) !important;
-    color: var(--st-tab-active) !important;
-    -webkit-text-fill-color: var(--st-tab-active) !important;
-}
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button[aria-checked="true"],
-[data-testid="stMain"] [data-testid="stButtonGroup"] button[aria-checked="true"],
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button[aria-pressed="true"],
-[data-testid="stMain"] [data-testid="stButtonGroup"] button[aria-pressed="true"],
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button[aria-checked="true"],
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button[aria-pressed="true"] {
-    background-color: var(--st-btn-primary-bg) !important;
-    color: var(--st-btn-primary-text) !important;
-    border-color: var(--st-btn-primary-bg) !important;
-    -webkit-text-fill-color: var(--st-btn-primary-text) !important;
-    font-weight: 600 !important;
-}
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button *,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button *,
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] button * {
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
-}
-[data-testid="stSidebar"] [data-testid="stButtonGroup"] button:disabled,
-[data-testid="stMain"] [data-testid="stButtonGroup"] button:disabled {
-    background-color: transparent !important;
-    color: var(--st-btn-disabled-text) !important;
-    -webkit-text-fill-color: var(--st-btn-disabled-text) !important;
-    border-color: transparent !important;
     opacity: 1 !important;
 }
 
@@ -704,32 +603,15 @@ def _dark_contrast_hardening() -> str:
     Scoped under ``stAppViewContainer`` for specificity; only injected in dark mode.
     """
     return """
-/* ----- Dark mode contrast hardening ----- */
+/* ----- Dark mode contrast hardening (Cloud host theme fallback) ----- */
 [data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label,
 [data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label p,
-[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label span,
-[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label div,
-[data-testid="stAppViewContainer"] [data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label,
-[data-testid="stAppViewContainer"] [data-testid="stSidebar"] .st-key-um_draft_radio [role="radiogroup"] label * {
+[data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label span {
     color: #f1f5f9 !important;
-    -webkit-text-fill-color: #f1f5f9 !important;
-    opacity: 1 !important;
 }
 [data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p,
 [data-testid="stAppViewContainer"] [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
     color: #cbd5e1 !important;
-    -webkit-text-fill-color: #cbd5e1 !important;
-    opacity: 1 !important;
-}
-[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label,
-[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label * {
-    color: #e2e8f0 !important;
-    -webkit-text-fill-color: #e2e8f0 !important;
-}
-[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked),
-[data-testid="stAppViewContainer"] [data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has([aria-checked="true"]) {
-    color: #f0fdfa !important;
-    -webkit-text-fill-color: #f0fdfa !important;
 }
 [data-testid="stAppViewContainer"] [data-testid="stMain"] button:disabled,
 [data-testid="stAppViewContainer"] [data-testid="stMain"] button[disabled],
@@ -740,83 +622,16 @@ def _dark_contrast_hardening() -> str:
     border-color: #5a6d85 !important;
     -webkit-text-fill-color: #e8edf4 !important;
 }
+[data-testid="stAppViewContainer"] [data-testid="stMain"] input::placeholder,
+[data-testid="stAppViewContainer"] [data-testid="stMain"] textarea::placeholder,
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] textarea::placeholder {
+    color: #b8c9dc !important;
+    opacity: 1 !important;
+}
 [data-testid="stAppViewContainer"] [data-testid="stChatInput"] textarea,
 [data-testid="stAppViewContainer"] [data-testid="stChatInput"] [data-baseweb="textarea"] {
     border-color: #5a6d85 !important;
     color: #f8fafc !important;
-}
-[data-testid="stAppViewContainer"] [data-testid="stChatInput"] textarea::placeholder {
-    color: #b8c9dc !important;
-    -webkit-text-fill-color: #b8c9dc !important;
-}
-"""
-
-
-def _workspace_tab_radio_css() -> str:
-    """Horizontal ``st.radio`` styled as a workspace tab bar (replaces segmented_control)."""
-    return """
-/* ----- Workspace tab bar (horizontal radio, key ia_workspace_tab) ----- */
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] {
-    width: 100% !important;
-}
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    align-items: stretch !important;
-    gap: 0.3rem !important;
-    width: 100% !important;
-    background: var(--st-segmented-track-bg) !important;
-    border: 1px solid var(--st-btn-secondary-border) !important;
-    border-radius: var(--radius-md) !important;
-    padding: 0.25rem !important;
-}
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label {
-    flex: 1 1 0 !important;
-    justify-content: center !important;
-    align-items: center !important;
-    margin: 0 !important;
-    padding: 0.38rem 0.45rem !important;
-    border-radius: var(--radius-sm) !important;
-    border: 1px solid transparent !important;
-    background: transparent !important;
-    color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
-    -webkit-text-fill-color: var(--st-segmented-inactive-text, var(--st-tab-inactive)) !important;
-    font-weight: 500 !important;
-    font-size: 0.82rem !important;
-    cursor: pointer !important;
-}
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label p,
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label span,
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label div {
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
-    opacity: 1 !important;
-}
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:hover {
-    background: var(--st-tab-hover-bg) !important;
-    color: var(--st-tab-active) !important;
-    -webkit-text-fill-color: var(--st-tab-active) !important;
-}
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked),
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [role="radiogroup"] > label:has([aria-checked="true"]) {
-    background: var(--st-btn-primary-bg) !important;
-    border-color: var(--st-btn-primary-bg) !important;
-    color: var(--st-btn-primary-text) !important;
-    -webkit-text-fill-color: var(--st-btn-primary-text) !important;
-    font-weight: 600 !important;
-}
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stRadio"] [data-baseweb="radio"] {
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    position: absolute !important;
-}
-[data-testid="stMain"] [data-testid="stVerticalBlock"]:has(.st-key-ia_workspace_tab) [data-testid="stVerticalBlockBorderWrapper"] {
-    padding: 0.3rem 0.4rem !important;
-    margin-bottom: 0.5rem !important;
 }
 """
 
@@ -824,7 +639,6 @@ def _workspace_tab_radio_css() -> str:
 def _build_app_css(dark: bool = False) -> str:
     vars_block = _DARK_VARS if dark else _LIGHT_VARS
     streamlit_layer = _streamlit_widget_overrides()
-    workspace_tabs = _workspace_tab_radio_css()
     dark_patch = _dark_contrast_hardening() if dark else ""
     return f"""<style>
 :root,
@@ -977,17 +791,13 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     color: var(--st-caption);
     margin: 0 0 0.35rem 0;
 }}
-.ia-workspace-nav {{
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    padding: 0.25rem 0.35rem;
-    margin-bottom: 0.5rem;
-}}
-.ia-workspace-nav [data-testid="stButtonGroup"] {{
-    border: none !important;
-    background: transparent !important;
-    padding: 0 !important;
+.ia-session-card-header {{
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 0 0 0.35rem 0;
 }}
 .ia-session-card {{
     background: var(--bg-card);
@@ -998,32 +808,34 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     box-shadow: var(--shadow-sm);
 }}
 .ia-session-status {{
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     margin: 0;
-    padding-top: 0.5rem;
+    padding-top: 0.42rem;
     white-space: nowrap;
 }}
 [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) {{
-    padding: 0.45rem 0.6rem !important;
+    padding: 0.5rem 0.65rem 0.55rem 0.65rem !important;
     margin-bottom: 0.65rem !important;
+    background: var(--bg-card) !important;
 }}
 [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stHorizontalBlock"] {{
-    gap: 0.3rem !important;
-    align-items: center !important;
+    gap: 0.35rem !important;
+    align-items: end !important;
 }}
 [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="column"] {{
     min-width: 0 !important;
 }}
 [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stTextInput"] input {{
-    min-height: 2.25rem !important;
+    min-height: 2.35rem !important;
 }}
 [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stButton"] button,
 [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-session_title) [data-testid="stDownloadButton"] button {{
-    min-height: 2.25rem !important;
-    padding: 0.25rem 0.35rem !important;
-    font-size: 0.8rem !important;
+    min-height: 2.35rem !important;
+    padding: 0.3rem 0.45rem !important;
+    font-size: 0.82rem !important;
+    width: 100% !important;
 }}
 .ia-chat-panel {{
     background: var(--bg-card);
@@ -1118,19 +930,6 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     padding: 0.95rem 1.05rem 1rem 1.05rem !important;
     margin-bottom: 0.75rem !important;
 }}
-[data-testid="stMain"] .st-key-ia_workspace_tab [data-testid="stButtonGroup"] {{
-    border: none !important;
-    background: transparent !important;
-    padding: 0 !important;
-}}
-[data-testid="stMain"] .st-key-ia_workspace_tab {{
-    margin-bottom: 0.35rem;
-}}
-[data-testid="stMain"] [data-testid="stVerticalBlock"]:has(.st-key-ia_workspace_tab) [data-testid="stVerticalBlockBorderWrapper"] {{
-    padding: 0.25rem 0.35rem !important;
-    margin-bottom: 0.5rem !important;
-    background: var(--bg-secondary) !important;
-}}
 [data-testid="stMain"] .ia-session-card[data-testid="stVerticalBlockBorderWrapper"] {{
     padding: 0.65rem 0.85rem !important;
     margin-bottom: 0.75rem !important;
@@ -1154,10 +953,6 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
 [data-testid="stSidebar"] .block-container {{
     padding-top: 1rem !important;
     padding-bottom: 2rem !important;
-}}
-[data-testid="stMain"] label {{
-    font-weight: 600 !important;
-    font-size: 0.82rem !important;
 }}
 .ia-card {{
     background: var(--bg-card);
@@ -1288,32 +1083,56 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     border-radius: var(--radius-md);
     padding: 0.75rem;
 }}
-/* Workspace nav uses buttons; extra spacing handled in layout */
+/* Workspace nav uses native st.tabs */
 [data-testid="stChatMessage"] {{
     border: 1px solid var(--border-primary);
     background: var(--bg-card) !important;
     border-radius: var(--radius-md);
 }}
+/* Workspace navigation — native st.tabs */
+[data-testid="stMain"] .stTabs {{
+    margin-bottom: 0.35rem !important;
+}}
 .stTabs [data-baseweb="tab-list"] {{
     background: var(--bg-secondary) !important;
     border: 1px solid var(--border-primary) !important;
-    border-radius: var(--radius-lg);
-    padding: 0.3rem !important;
+    border-radius: var(--radius-md);
+    padding: 0.25rem !important;
+    gap: 0.2rem !important;
 }}
 .stTabs [data-baseweb="tab"] {{
     color: var(--st-tab-inactive) !important;
+    background: transparent !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 0.84rem !important;
+    font-weight: 500 !important;
+    padding: 0.4rem 0.65rem !important;
+}}
+.stTabs [data-baseweb="tab"] p,
+.stTabs [data-baseweb="tab"] span {{
+    color: inherit !important;
 }}
 .stTabs [data-baseweb="tab"]:hover {{
     background-color: var(--st-tab-hover-bg) !important;
-    border-radius: var(--radius-sm);
+    color: var(--st-tab-active) !important;
+}}
+.stTabs [data-baseweb="tab"][aria-selected="true"] {{
+    background-color: var(--st-btn-primary-bg) !important;
+    color: var(--st-btn-primary-text) !important;
 }}
 .stTabs [data-baseweb="tab"][aria-selected="true"],
-.stTabs [data-baseweb="tab"][aria-selected="true"] span {{
-    color: var(--st-tab-active) !important;
+.stTabs [data-baseweb="tab"][aria-selected="true"] span,
+.stTabs [data-baseweb="tab"][aria-selected="true"] p {{
+    color: var(--st-btn-primary-text) !important;
     font-weight: 600 !important;
 }}
+.stTabs [data-baseweb="tab-highlight"] {{
+    display: none !important;
+}}
+.stTabs [data-baseweb="tab-border"] {{
+    display: none !important;
+}}
 {streamlit_layer}
-{workspace_tabs}
 {dark_patch}
 </style>"""
 

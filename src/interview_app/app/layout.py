@@ -2,8 +2,8 @@
 Streamlit main-area layout: header, configuration summary card, primary workspace navigation.
 
 Sidebar holds all configuration (`controls.render_sidebar_configuration`).
-Main area: hero, Current Setup card, segmented workspace nav (session `ia_workspace_tab`),
-then the active panel (mock interview, questions, CV prep, feedback).
+Main area: hero, Current Setup card, native ``st.tabs`` workspace nav (``default`` synced
+from session ``ia_workspace_tab`` for sidebar shortcuts), then tab panels.
 """
 
 from __future__ import annotations
@@ -32,24 +32,6 @@ def render_hero_header() -> None:
     )
 
 
-def render_workspace_navigation(tab_labels: list[str]) -> None:
-    """
-    Primary workspace navigation (horizontal ``st.radio`` styled as tabs).
-
-    Uses session key ``ia_workspace_tab`` so sidebar shortcuts stay in sync.
-    Horizontal radio is more reliably themeable than ``st.segmented_control`` on Streamlit Cloud.
-    """
-    st.markdown('<div class="ia-workspace-nav-label">Workspace</div>', unsafe_allow_html=True)
-    with st.container(border=True):
-        st.radio(
-            "Workspace",
-            options=tab_labels,
-            key="ia_workspace_tab",
-            horizontal=True,
-            label_visibility="collapsed",
-        )
-
-
 def render_configuration_summary_bar(settings: UISettings) -> None:
     """Compact read-only strip of active setup (recruiter-friendly, technical details collapsed)."""
     st.markdown(
@@ -59,7 +41,7 @@ def render_configuration_summary_bar(settings: UISettings) -> None:
 
 
 def render_main_content(settings: UISettings) -> None:
-    """Workspace: summary bar + primary navigation + tab panels."""
+    """Workspace: summary bar + native tabs + tab panels."""
     init_session_state()
 
     render_configuration_summary_bar(settings)
@@ -70,15 +52,18 @@ def render_main_content(settings: UISettings) -> None:
     if st.session_state.ia_workspace_tab not in tab_labels:
         st.session_state.ia_workspace_tab = tab_labels[0]
 
-    render_workspace_navigation(tab_labels)
+    st.markdown(
+        '<div class="ia-workspace-nav-label">Workspace</div>',
+        unsafe_allow_html=True,
+    )
+    active_tab = str(st.session_state.ia_workspace_tab)
+    tab_panels = st.tabs(tab_labels, default=active_tab)
 
-    tab = st.session_state.ia_workspace_tab
-
-    if tab == tab_labels[0]:
+    with tab_panels[0]:
         _render_mock_interview_tab(settings)
-    elif tab == tab_labels[1]:
+    with tab_panels[1]:
         _render_question_generation_tab(settings)
-    elif tab == tab_labels[2]:
+    with tab_panels[2]:
         _render_cv_interview_tab(settings)
-    else:
+    with tab_panels[3]:
         _render_answer_feedback_tab(settings)
