@@ -19,7 +19,7 @@
 | **Sidebar setup** | Role, seniority, round, focus, persona, difficulty, model preset, prompt strategy, language |
 | **Demo / BYO API key** | Server key (Demo) or session-only user key (BYO)—BYO never persisted to disk |
 | **Saved sessions** | Local JSON under `data/sessions/` (gitignored), scoped by usage mode |
-| **Diagnostics** | Collapsed sidebar panel: environment, model, security toggles—no secret values |
+| **Developer diagnostics** | Opt-in dev-only sidebar panel (`APP_ENV=dev` + `SHOW_DIAGNOSTICS=true`); no secret values |
 | **Dark mode** | Theme toggle with accessible contrast tokens |
 
 ---
@@ -79,7 +79,7 @@ Edit `.env` and set `OPENAI_API_KEY` for **Demo mode** (or use **BYO** in the UI
 python -m streamlit run streamlit_app.py
 ```
 
-Open `http://localhost:8501`. Optional: open sidebar **Diagnostics** to verify configuration (no secrets shown).
+Open `http://localhost:8501`. To show Developer diagnostics locally, set `SHOW_DIAGNOSTICS=true` in `.env` (requires `APP_ENV=dev`).
 
 ---
 
@@ -118,8 +118,7 @@ CI runs the same checks on every push and PR (no repository secrets).
    OPENAI_API_KEY = "sk-your-key-here"
    ```
 
-5. **Deploy**, then open **Diagnostics** in the sidebar and confirm **Server OPENAI_API_KEY: Configured**.
-6. Run the demo smoke test below on all four tabs.
+5. **Deploy**, then run the demo smoke test below on all four tabs.
 
 Full checklist: **[docs/STREAMLIT_CLOUD.md](docs/STREAMLIT_CLOUD.md)**.
 
@@ -161,7 +160,8 @@ BYO keys are **not** written to session JSON or git. **Apply usage mode** resets
 | `OPENAI_API_KEY` | Required for Demo mode LLM calls |
 | `OPENAI_MODEL` | Default preset or raw model id (default: `gpt-4o-mini`) |
 | `OPENAI_MAX_RETRIES` | Transient API retries (default: `3`) |
-| `APP_ENV` | Label shown in Diagnostics (e.g. `dev`, `prod`) |
+| `APP_ENV` | Environment label (`dev`, `prod`, `test`) |
+| `SHOW_DIAGNOSTICS` | Set `true` with `APP_ENV=dev` to show Developer diagnostics in the sidebar (local only) |
 | `SESSIONS_DIR` | Saved sessions directory (default: `data/sessions`) |
 
 Security toggles use the `SECURITY_` prefix — see **[docs/security.md](docs/security.md)** and `.env.example`.

@@ -177,6 +177,9 @@ _READY_PHRASES: tuple[str, ...] = (
     "new question",
     "continue interview",
     "continue the interview",
+    "let us continue",
+    "let's continue",
+    "lets continue",
     "kick off",
 )
 

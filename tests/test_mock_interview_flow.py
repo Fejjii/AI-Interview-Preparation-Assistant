@@ -225,6 +225,29 @@ def test_switch_to_behavioral_skips_evaluation_and_sets_behavioral_focus(
     assert gen.call_args.kwargs.get("interview_focus") == "Behavioral / Soft Skills"
 
 
+def test_lets_continue_without_pending_classifies_as_start() -> None:
+    assert (
+        classify_user_message("Let's continue.", pending_question=None)
+        == UserMessageKind.START_REQUEST
+    )
+
+
+def test_lets_continue_with_pending_is_meta_not_answer() -> None:
+    assert (
+        detect_user_turn_type("Let's continue.", pending_question="Describe REST.")
+        == UserTurnType.META
+    )
+    assert (
+        should_run_full_evaluation(
+            pending_question="Describe REST.",
+            turn_type=UserTurnType.META,
+            interview_state=InterviewState.WAITING_FOR_ANSWER,
+            user_text="Let's continue.",
+        )
+        is False
+    )
+
+
 def test_ready_phrase_i_am_ready_classifies_as_start() -> None:
     assert (
         classify_user_message("Hello, I am ready for the interview")

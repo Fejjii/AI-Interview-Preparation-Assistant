@@ -51,6 +51,8 @@ _INJECTION_PHRASES: Final[tuple[str, ...]] = (
     "override your instructions",
     "new instructions:",
     "disregard all rules",
+    "ignore all prior rules",
+    "ignore prior rules",
     "system prompt",
     "developer message",
     "you are chatgpt",
@@ -92,6 +94,12 @@ _INJECTION_REGEXES: Final[tuple[re.Pattern[str], ...]] = (
     re.compile(r"\b<<<[a-z0-9_]{3,}>>>\b", re.IGNORECASE),
     re.compile(
         r"\b(call|invoke|execute)\b.{0,40}\b(tool|function)\b.{0,40}\b(ignore|override)\b",
+        re.IGNORECASE,
+    ),
+    # Imperative credential-exfiltration requests (start-anchored to avoid STAR answers).
+    re.compile(
+        r"^\s*(?:please\s+)?(?:print|reveal|show|dump|leak)\s+(?:me\s+)?(?:the\s+|your\s+)?"
+        r"(?:openai\s+)?api\s*keys?\b",
         re.IGNORECASE,
     ),
 )

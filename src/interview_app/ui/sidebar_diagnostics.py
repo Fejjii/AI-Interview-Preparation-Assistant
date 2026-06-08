@@ -1,4 +1,4 @@
-"""Sidebar diagnostics: non-secret runtime configuration for operators and reviewers."""
+"""Sidebar developer diagnostics: non-secret runtime configuration for local debugging."""
 
 from __future__ import annotations
 
@@ -8,16 +8,24 @@ import streamlit as st
 
 from interview_app.app.ui_settings import UISettings
 from interview_app.app.usage_mode import UsageMode
-from interview_app.config.settings import get_security_settings, get_settings
+from interview_app.config.settings import (
+    get_security_settings,
+    get_settings,
+    show_sidebar_diagnostics,
+)
 from interview_app.llm.model_settings import MODEL_PRESET_LABELS, resolve_openai_model_id
 
 
 def _sessions_dir_display() -> str:
-    raw = get_settings().sessions_dir
+    """Prefer a short relative path over a resolved absolute path."""
+    raw = get_settings().sessions_dir.strip() or "data/sessions"
     path = Path(raw)
     if not path.is_absolute():
-        path = Path.cwd() / path
-    return str(path.resolve())
+        return raw
+    try:
+        return str(path.relative_to(Path.cwd()))
+    except ValueError:
+        return path.name or raw
 
 
 def _server_openai_key_configured() -> bool:
@@ -30,12 +38,15 @@ def _server_openai_key_configured() -> bool:
 
 def render_sidebar_diagnostics(settings: UISettings) -> None:
     """
-    Collapsed-by-default health panel (no network calls, no secret values).
+    Collapsed-by-default developer panel (no network calls, no secret values).
 
-    Intended for deployment troubleshooting and portfolio reviewers.
+    Only rendered when ``show_sidebar_diagnostics()`` is True (dev + SHOW_DIAGNOSTICS).
     """
+    if not show_sidebar_diagnostics():
+        return
+
     sb = st.sidebar
-    with sb.expander("Diagnostics", expanded=False):
+    with sb.expander("Developer diagnostics", expanded=False):
         app_settings = get_settings()
         security = get_security_settings()
         preset = settings.model_preset
@@ -75,8 +86,8 @@ def render_sidebar_diagnostics(settings: UISettings) -> None:
             st.markdown(f"**{label}:** {value}")
 
         st.caption(
-            "Evaluations (local, no API key): `pytest tests/evaluations -v` "
-            "or `python evaluations/run_evaluations.py`"
+            "Local only. Evaluations: `pytest tests/evaluations -v` or "
+            "`python evaluations/run_evaluations.py`"
         )
 
     sb.divider()

@@ -80,6 +80,14 @@ class Settings(BaseSettings):
 
     app_env: str = Field(default="dev", description="Application environment (dev/prod/test).")
 
+    show_diagnostics: bool = Field(
+        default=False,
+        description=(
+            "Show Developer diagnostics in the sidebar. Only applies when APP_ENV=dev; "
+            "ignored in prod/test deployments."
+        ),
+    )
+
     openai_api_key: SecretStr | None = Field(
         default=None,
         description="OpenAI API key. Prefer setting via environment variable OPENAI_API_KEY.",
@@ -125,3 +133,15 @@ def get_settings() -> Settings:
 def get_security_settings() -> SecuritySettings:
     """Shortcut to access the security sub-config."""
     return get_settings().security
+
+
+def show_sidebar_diagnostics() -> bool:
+    """
+    Whether the sidebar Developer diagnostics panel should render.
+
+    Public-safe default: hidden unless ``APP_ENV=dev`` and ``SHOW_DIAGNOSTICS=true``.
+    """
+    settings = get_settings()
+    if settings.app_env.strip().lower() != "dev":
+        return False
+    return settings.show_diagnostics

@@ -34,9 +34,11 @@ Official flow for hosting this app at [share.streamlit.io](https://share.streaml
    SECURITY_MODERATION_ENABLED = "true"
    ```
 
+   Developer diagnostics stay hidden on Cloud (`APP_ENV=prod`). To enable locally,
+   set `APP_ENV=dev` and `SHOW_DIAGNOSTICS=true` in `.env`.
+
 8. Click **Deploy** and wait for the build to finish.
-9. Open the live URL → sidebar **Diagnostics** → confirm **Server OPENAI_API_KEY: Configured**.
-10. Run the [post-deploy smoke test](#post-deploy-smoke-test) on all four workspace tabs.
+9. Open the live URL and run the [post-deploy smoke test](#post-deploy-smoke-test) on all four workspace tabs.
 
 ## Required secret names
 

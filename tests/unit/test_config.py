@@ -9,7 +9,7 @@ These tests ensure:
 - the cached `get_settings()` can be reset between tests
 """
 
-from interview_app.config.settings import Settings, get_settings
+from interview_app.config.settings import Settings, get_settings, show_sidebar_diagnostics
 
 
 def test_settings_defaults() -> None:
@@ -21,6 +21,24 @@ def test_settings_defaults() -> None:
     assert settings.openai_model
     assert settings.openai_temperature == 0.2
     assert settings.openai_max_retries == 3
+    assert settings.show_diagnostics is False
+
+
+def test_show_sidebar_diagnostics_requires_dev_and_flag(monkeypatch) -> None:
+    """Developer diagnostics are opt-in and never shown outside APP_ENV=dev."""
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("SHOW_DIAGNOSTICS", "true")
+    get_settings.cache_clear()
+    assert show_sidebar_diagnostics() is False
+
+    monkeypatch.setenv("APP_ENV", "dev")
+    monkeypatch.setenv("SHOW_DIAGNOSTICS", "false")
+    get_settings.cache_clear()
+    assert show_sidebar_diagnostics() is False
+
+    monkeypatch.setenv("SHOW_DIAGNOSTICS", "true")
+    get_settings.cache_clear()
+    assert show_sidebar_diagnostics() is True
 
 
 def test_settings_env_overrides(monkeypatch) -> None:

@@ -34,6 +34,7 @@ from interview_app.app.ui_settings import (
     prompt_strategy_key_from_label,
 )
 from interview_app.app.usage_mode import KEY_BYO_KEY_HINT, KEY_USAGE_MODE, UsageMode
+from interview_app.config.settings import show_sidebar_diagnostics
 from interview_app.llm import MODEL_PRESETS
 from interview_app.llm.model_settings import (
     DEFAULT_MODEL_PRESET_KEY,
@@ -83,7 +84,7 @@ def render_sidebar_configuration() -> UISettings:
     Render the full configuration sidebar and return a frozen `UISettings` snapshot.
 
     Sections: Session setup, Interview configuration, Advanced settings (collapsed),
-    Saved sessions (collapsed), Diagnostics (collapsed).
+    Saved sessions (collapsed). Developer diagnostics when enabled (dev + SHOW_DIAGNOSTICS).
     """
     sb = st.sidebar
 
@@ -412,7 +413,8 @@ def render_sidebar_configuration() -> UISettings:
         usage_mode=usage_m,
         byo_key_hint=byo_disp,
     )
-    render_sidebar_diagnostics(settings)
+    if show_sidebar_diagnostics():
+        render_sidebar_diagnostics(settings)
     return settings
 
 
