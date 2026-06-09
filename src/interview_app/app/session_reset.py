@@ -15,6 +15,7 @@ from interview_app.app import cv_session_state as cvs
 from interview_app.app.usage_mode import (
     KEY_BYO_KEY_HINT,
     KEY_BYO_OPENAI_API_KEY,
+    KEY_DEMO_LLM_CALL_COUNT,
     KEY_USAGE_DRAFT_RADIO,
     KEY_USAGE_MODE,
 )
@@ -88,6 +89,7 @@ def reset_all_workspace_state(session_state: dict[str, Any]) -> None:
     cvs.clear_cv_workspace(session_state)
 
     reset_rate_limit(session_state)
+    session_state.pop(KEY_DEMO_LLM_CALL_COUNT, None)
 
     for k in _WORKSPACE_WIDGET_KEYS:
         session_state.pop(k, None)

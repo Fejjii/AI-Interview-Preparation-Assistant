@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from interview_app.app.interview_form_config import validate_role_title
+from interview_app.app.usage_mode import maybe_block_demo_llm_call, record_demo_llm_call
 from interview_app.config.settings import get_security_settings
 from interview_app.cv.document_parser import extract_text_from_cv_bytes
 from interview_app.cv.exceptions import CVExtractionError, CVFileValidationError
@@ -372,6 +373,25 @@ def run_cv_interview_pipeline(
         ext_sys = system_prompt_cv_extraction()
         ext_user = user_prompt_cv_extraction(cleaned)
 
+        blocked = maybe_block_demo_llm_call(session_state)
+        if blocked:
+            return CVInterviewServiceResult(
+                ok=False,
+                bundle=None,
+                practice_bundle=None,
+                error=blocked,
+                guardrails=guards,
+                raw_extracted_text=raw_text,
+                cleaned_text_for_llm=cleaned,
+                file_hash=file_hash,
+                extraction_system_prompt=ext_sys,
+                extraction_user_prompt=ext_user,
+                generation_system_prompt=None,
+                generation_user_prompt=None,
+                llm_responses=[],
+                generation_mode=generation_mode,
+            )
+
         try:
             client = LLMClient(
                 model=model,
@@ -407,6 +427,7 @@ def run_cv_interview_pipeline(
                 generation_mode=generation_mode,
             )
 
+        record_demo_llm_call(session_state)
         llm_responses.append(resp1)
         out1 = run_output_pipeline(resp1.text, expect_json=True, service=_SERVICE_NAME)
         if not out1.safe:
@@ -513,6 +534,25 @@ def run_cv_interview_pipeline(
             extra_job_context=jd_cleaned,
         )
 
+    blocked = maybe_block_demo_llm_call(session_state)
+    if blocked:
+        return CVInterviewServiceResult(
+            ok=False,
+            bundle=None,
+            practice_bundle=None,
+            error=blocked,
+            guardrails=guards,
+            raw_extracted_text=raw_text,
+            cleaned_text_for_llm=cleaned,
+            file_hash=file_hash,
+            extraction_system_prompt=ext_sys,
+            extraction_user_prompt=ext_user,
+            generation_system_prompt=gen_sys,
+            generation_user_prompt=gen_user,
+            llm_responses=llm_responses,
+            generation_mode=generation_mode,
+        )
+
     try:
         client = LLMClient(
             model=model,
@@ -553,6 +593,7 @@ def run_cv_interview_pipeline(
             generation_mode=generation_mode,
         )
 
+    record_demo_llm_call(session_state)
     llm_responses.append(resp2)
     out2 = run_output_pipeline(resp2.text, expect_json=True, service=_SERVICE_NAME)
     if not out2.safe:
@@ -775,6 +816,18 @@ def run_cv_practice_evaluation(
         qa_json=qa_pipe.cleaned_text,
     )
 
+    blocked = maybe_block_demo_llm_call(session_state)
+    if blocked:
+        return CVPracticeEvaluationServiceResult(
+            ok=False,
+            batch=None,
+            error=blocked,
+            guardrails=guards,
+            system_prompt=sys_p,
+            user_prompt=usr_p,
+            llm_responses=[],
+        )
+
     try:
         client = LLMClient(
             model=model,
@@ -804,6 +857,7 @@ def run_cv_practice_evaluation(
             llm_responses=[],
         )
 
+    record_demo_llm_call(session_state)
     llm_responses.append(resp)
     out = run_output_pipeline(resp.text, expect_json=True, service=_SERVICE_NAME)
     if not out.safe:

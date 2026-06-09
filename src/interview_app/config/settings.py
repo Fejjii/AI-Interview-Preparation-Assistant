@@ -122,6 +122,15 @@ class Settings(BaseSettings):
             "Structured JSON flows (questions, CV, evaluation) always use buffered mode."
         ),
     )
+    demo_max_llm_calls_per_session: int = Field(
+        default=10,
+        ge=1,
+        le=10_000,
+        description=(
+            "Maximum OpenAI API calls per browser session in Demo access mode. "
+            "BYO key mode is not limited by this setting."
+        ),
+    )
 
     security: SecuritySettings = Field(default_factory=SecuritySettings)
 

@@ -14,6 +14,9 @@ from interview_app.app.usage_mode import (
     KEY_USAGE_MODE,
     UsageMode,
     demo_mode_backend_key_configured,
+    demo_remaining_calls,
+    get_demo_max_llm_calls,
+    get_demo_usage_count,
     key_tail_from_masked_hint,
     mask_api_key_for_display,
     validate_openai_api_key_format,
@@ -43,6 +46,11 @@ def _render_applied_status(applied: str, hint: object) -> None:
             "</div>",
             unsafe_allow_html=True,
         )
+        remaining = demo_remaining_calls(st.session_state)
+        if remaining is not None:
+            used = get_demo_usage_count(st.session_state)
+            cap = get_demo_max_llm_calls()
+            sb.caption(f"Demo calls: {used}/{cap} used ({remaining} remaining this session).")
         return
 
     tail = key_tail_from_masked_hint(str(hint)) if hint else None

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from interview_app.app.interview_form_config import truncate_job_description, validate_role_title
+from interview_app.app.usage_mode import maybe_block_demo_llm_call, record_demo_llm_call
 from interview_app.llm.model_settings import resolve_openai_model_id
 from interview_app.llm.openai_client import LLMClient
 from interview_app.prompts.personas import get_persona_evaluation_rubric, get_persona_prompt
@@ -192,6 +193,18 @@ def evaluate_answer(
         evaluation_context_hints=(evaluation_context_hints or "").strip(),
     )
 
+    blocked = maybe_block_demo_llm_call(session_state)
+    if blocked:
+        return EvaluateAnswerResult(
+            ok=False,
+            response=None,
+            error=blocked,
+            guardrails=guards,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            evaluation=None,
+        )
+
     try:
         client = LLMClient(
             model=model,
@@ -219,6 +232,8 @@ def evaluate_answer(
             user_prompt=user_prompt,
             evaluation=None,
         )
+
+    record_demo_llm_call(session_state)
 
     # --- Output pipeline ---
     output_check = run_output_pipeline(resp.text, service=_SERVICE_NAME)

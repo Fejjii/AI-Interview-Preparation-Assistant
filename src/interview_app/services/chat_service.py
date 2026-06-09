@@ -18,6 +18,7 @@ from typing import Any
 
 from interview_app.app.interview_form_config import validate_role_title
 from interview_app.app.ui_settings import UISettings
+from interview_app.app.usage_mode import maybe_block_demo_llm_call, record_demo_llm_call
 from interview_app.config.settings import get_settings
 from interview_app.llm.model_settings import get_model_config
 from interview_app.llm.openai_client import LLMClient, LLMStream
@@ -248,6 +249,7 @@ def run_turn(
             llm_cfg,
             openai_api_key=openai_api_key,
             enable_streaming=stream_enabled,
+            session_state=session_state,
         )
 
     if should_run_full_evaluation(
@@ -331,6 +333,7 @@ def run_turn(
         llm_cfg,
         openai_api_key=openai_api_key,
         enable_streaming=stream_enabled,
+        session_state=session_state,
     )
 
 
@@ -783,6 +786,7 @@ def _interviewer_clarification_or_meta_turn(
             enable_streaming=enable_streaming,
             llm_debug=meta_dbg,
             finalize=_finalize_meta,
+            session_state=session_state,
         )
     except Exception as exc:
         return ChatTurnResult(
@@ -799,6 +803,7 @@ def _answer_general_question(
     *,
     openai_api_key: str | None = None,
     enable_streaming: bool = False,
+    session_state: dict[str, Any] | None = None,
 ) -> ChatTurnResult:
     """Fallback conversational turn (still uses sidebar LLM parameters)."""
     role = (effective.role_title or "").strip() or "your target"
@@ -842,6 +847,7 @@ def _answer_general_question(
             enable_streaming=enable_streaming,
             llm_debug=None,
             finalize=_finalize_general,
+            session_state=session_state,
         )
     except Exception as exc:
         return ChatTurnResult(
@@ -863,8 +869,17 @@ def _run_streamable_conversational_llm(
     enable_streaming: bool,
     llm_debug: LlmTurnDebug | None,
     finalize: Callable[[LLMResponse], ChatTurnResult],
+    session_state: dict[str, Any] | None = None,
 ) -> ChatTurnResult:
     """Buffered or streaming conversational LLM call with post-stream output validation."""
+    blocked = maybe_block_demo_llm_call(session_state)
+    if blocked:
+        return ChatTurnResult(
+            assistant_message=blocked,
+            evaluation=None,
+            llm_debug=llm_debug,
+        )
+
     client = LLMClient(
         model=llm_cfg.resolved_model_name,
         temperature=temperature,
@@ -886,6 +901,7 @@ def _run_streamable_conversational_llm(
     if enable_streaming:
         try:
             llm_stream = client.stream_response(**common_kwargs)
+            record_demo_llm_call(session_state)
             return ChatTurnResult(
                 assistant_message="",
                 evaluation=None,
@@ -899,6 +915,7 @@ def _run_streamable_conversational_llm(
             _logger.debug("Streaming unavailable for %s; falling back to buffered mode.", llm_route)
 
     resp = client.generate_response(**common_kwargs)
+    record_demo_llm_call(session_state)
     result = finalize(resp)
     if llm_debug is not None and result.llm_debug is None:
         return ChatTurnResult(

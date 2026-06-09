@@ -7,6 +7,7 @@ from interview_app.app.session_reset import reset_all_workspace_state, session_h
 from interview_app.app.usage_mode import (
     KEY_BYO_KEY_HINT,
     KEY_BYO_OPENAI_API_KEY,
+    KEY_DEMO_LLM_CALL_COUNT,
     KEY_USAGE_MODE,
     UsageMode,
 )
@@ -38,6 +39,7 @@ def test_reset_clears_chat_cv_compare_and_byo_keys() -> None:
         KEY_USAGE_MODE: UsageMode.BYO.value,
         KEY_BYO_OPENAI_API_KEY: "sk-12345678901234567890123456789012",
         KEY_BYO_KEY_HINT: "sk-...9012",
+        KEY_DEMO_LLM_CALL_COUNT: 7,
         cvs.KEY_ANALYSIS_READY: True,
         cvs.KEY_VERSION: 2,
     }
@@ -50,6 +52,7 @@ def test_reset_clears_chat_cv_compare_and_byo_keys() -> None:
     assert cvs.analysis_ready(ss) is False
     assert KEY_USAGE_MODE not in ss
     assert KEY_BYO_OPENAI_API_KEY not in ss
+    assert KEY_DEMO_LLM_CALL_COUNT not in ss
 
 
 def test_reset_clears_feedback_widget_keys() -> None:

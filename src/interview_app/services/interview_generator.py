@@ -19,6 +19,7 @@ from typing import Any, Callable
 
 from interview_app.app.interview_form_config import truncate_job_description, validate_role_title
 from interview_app.app.ui_settings import UISettings
+from interview_app.app.usage_mode import maybe_block_demo_llm_call, record_demo_llm_call
 from interview_app.llm.model_settings import resolve_openai_model_id
 from interview_app.llm.openai_client import LLMClient
 from interview_app.prompts import prompt_strategies
@@ -150,6 +151,16 @@ def generate_questions(
             f"{user_prompt_body}\n\n---\nAdditional instructions for this request:\n{suffix}\n"
         )
 
+    blocked = maybe_block_demo_llm_call(session_state)
+    if blocked:
+        return GenerateQuestionsResult(
+            ok=False,
+            response=None,
+            error=blocked,
+            guardrails=guards,
+            prompt=None,
+        )
+
     try:
         client = LLMClient(
             model=model,
@@ -175,6 +186,8 @@ def generate_questions(
             guardrails=guards,
             prompt=None,
         )
+
+    record_demo_llm_call(session_state)
 
     # --- Output pipeline: validate model response ---
     output_check = run_output_pipeline(resp.text, service=_SERVICE_NAME)

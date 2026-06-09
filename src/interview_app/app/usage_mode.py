@@ -18,6 +18,13 @@ KEY_BYO_OPENAI_API_KEY = "ia_byo_openai_api_key_secret"
 KEY_BYO_KEY_HINT = "ia_byo_key_display_hint"
 # Sidebar widget: selected label before Apply.
 KEY_USAGE_DRAFT_RADIO = "um_draft_radio"
+# Demo-mode LLM call counter (in-memory per Streamlit browser session).
+KEY_DEMO_LLM_CALL_COUNT = "ia_demo_llm_call_count"
+
+DEMO_LIMIT_MESSAGE = (
+    "Demo usage limit reached for this session. "
+    "You can refresh later or use your own OpenAI API key."
+)
 
 
 class UsageMode(str, Enum):
@@ -103,3 +110,73 @@ def demo_mode_backend_key_configured() -> bool:
         return False
     v = s.openai_api_key.get_secret_value()
     return bool(v and str(v).strip())
+
+
+def is_demo_usage_mode(session_state: dict[str, Any]) -> bool:
+    """True when the active session bills API calls against the shared demo key."""
+    mode = str(session_state.get(KEY_USAGE_MODE) or UsageMode.DEMO.value)
+    return mode == UsageMode.DEMO.value
+
+
+def get_demo_max_llm_calls() -> int:
+    """Configured per-session demo LLM call cap (from settings / env)."""
+    from interview_app.config.settings import get_settings
+
+    return get_settings().demo_max_llm_calls_per_session
+
+
+def get_demo_usage_count(session_state: dict[str, Any]) -> int:
+    """Number of successful demo LLM calls recorded for this browser session."""
+    raw = session_state.get(KEY_DEMO_LLM_CALL_COUNT, 0)
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
+
+
+def demo_remaining_calls(session_state: dict[str, Any]) -> int | None:
+    """
+    Remaining demo LLM calls for this session, or ``None`` when not in demo mode.
+    """
+    if not is_demo_usage_mode(session_state):
+        return None
+    return max(0, get_demo_max_llm_calls() - get_demo_usage_count(session_state))
+
+
+def demo_usage_limit_reached(session_state: dict[str, Any]) -> bool:
+    """True when demo mode is active and the session call cap has been reached."""
+    if not is_demo_usage_mode(session_state):
+        return False
+    return get_demo_usage_count(session_state) >= get_demo_max_llm_calls()
+
+
+def increment_demo_usage_count(session_state: dict[str, Any]) -> int:
+    """
+    Record one successful demo LLM call. No-op outside demo mode.
+
+    Returns the updated count.
+    """
+    if not is_demo_usage_mode(session_state):
+        return get_demo_usage_count(session_state)
+    count = get_demo_usage_count(session_state) + 1
+    session_state[KEY_DEMO_LLM_CALL_COUNT] = count
+    return count
+
+
+def maybe_block_demo_llm_call(session_state: dict[str, Any] | None) -> str | None:
+    """
+    Return the user-facing limit message when a demo LLM call should be blocked.
+
+    Returns ``None`` when the call may proceed (BYO mode or under the cap).
+    """
+    if session_state is None or not is_demo_usage_mode(session_state):
+        return None
+    if demo_usage_limit_reached(session_state):
+        return DEMO_LIMIT_MESSAGE
+    return None
+
+
+def record_demo_llm_call(session_state: dict[str, Any] | None) -> None:
+    """Increment the demo usage counter after a successful OpenAI API call."""
+    if session_state is not None:
+        increment_demo_usage_count(session_state)
