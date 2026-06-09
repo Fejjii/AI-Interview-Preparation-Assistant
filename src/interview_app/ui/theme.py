@@ -858,37 +858,17 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     line-height: 1.5;
     margin: 0;
 }}
-.ia-voice-intro {{
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    line-height: 1.55;
-    margin: 0 0 0.65rem 0;
-}}
-.ia-voice-step {{
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-tertiary);
-    margin: 0 0 0.55rem 0;
-}}
 .ia-voice-status {{
-    font-size: 0.86rem;
+    font-size: 0.84rem;
     color: var(--text-secondary);
-    margin: 0 0 0.5rem 0;
-}}
-.ia-voice-upload-label {{
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin: 0 0 0.35rem 0;
+    margin: 0 0 0.45rem 0;
 }}
 .ia-voice-hint {{
-    font-size: 0.84rem;
-    line-height: 1.45;
-    margin: 0 0 0.55rem 0;
-    padding: 0.55rem 0.75rem;
-    border-radius: 0.55rem;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    margin: 0 0 0.45rem 0;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.5rem;
     border: 1px solid var(--border-primary);
 }}
 .ia-voice-hint-info {{
@@ -901,34 +881,41 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     color: var(--text-secondary);
     border-color: rgba(217, 119, 6, 0.22);
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stVerticalBlockBorderWrapper"] {{
-    background: var(--bg-card);
-    border-color: var(--border-primary) !important;
-    margin-bottom: 0.55rem;
+[data-testid="stMain"] .st-key-ia_voice_composer {{
+    margin-bottom: 0.35rem;
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stAudioInput"] {{
-    margin-bottom: 0.15rem;
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stPopover"] > button {{
+    min-height: 2.35rem;
+    font-size: 0.88rem !important;
+    padding: 0.35rem 0.85rem !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stAudioInput"] > div {{
-    max-height: 5.5rem;
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stAudioInput"] {{
+    margin-bottom: 0.1rem;
+}}
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stAudioInput"] > div {{
+    max-height: 5rem;
     overflow: hidden;
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploader"] {{
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stFileUploader"] {{
     padding-top: 0 !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploader"] section {{
-    padding: 0.45rem 0.55rem !important;
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stFileUploader"] section {{
+    padding: 0.35rem 0.45rem !important;
     min-height: 0 !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploaderDropzone"] {{
-    min-height: 3.25rem !important;
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stFileUploaderDropzone"] {{
+    min-height: 2.75rem !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploaderDropzone"] div {{
-    font-size: 0.8rem !important;
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stFileUploaderDropzone"] div {{
+    font-size: 0.78rem !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stTextArea"] textarea {{
-    min-height: 6.5rem !important;
-    font-size: 0.92rem !important;
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stTextArea"] textarea {{
+    min-height: 5.5rem !important;
+    font-size: 0.9rem !important;
+}}
+[data-testid="stMain"] .st-key-ia_voice_composer [data-testid="stExpander"] {{
+    margin-top: 0.15rem;
+    margin-bottom: 0.35rem;
 }}
 .ia-section-head {{
     margin: 0 0 0.75rem 0;

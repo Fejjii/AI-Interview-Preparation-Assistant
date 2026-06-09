@@ -66,9 +66,13 @@ def main() -> int:
         and "render_voice_input_panel" not in (ROOT / "src/interview_app/app/tabs/questions_tab.py").read_text()
         and "render_voice_input_panel" not in (ROOT / "src/interview_app/app/tabs/cv_prep_tab.py").read_text()
     )
-    collapsed = 'expander("Voice input", expanded=False)' in voice_ui
+    compact = (
+        'popover("Voice answer"' in voice_ui
+        and 'expander("Upload audio instead"' in voice_ui
+        and "Step 1" not in voice_ui
+    )
     results.append(("Voice input only in Mock Interview tab (code)", only_mock, ""))
-    results.append(("Voice expander collapsed by default (code)", collapsed, ""))
+    results.append(("Compact voice composer near chat input (code)", compact, ""))
 
     # 3: live transcription from uploaded WAV (uses server key from env; never logged)
     if wav.is_file():

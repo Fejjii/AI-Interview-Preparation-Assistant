@@ -8,7 +8,7 @@ import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from interview_app.app.tabs.shared import session_openai_key
-from interview_app.services.transcription_service import transcribe_audio
+from interview_app.services.transcription_service import MSG_NO_AUDIO, transcribe_audio
 
 KEY_VOICE_TRANSCRIPT = "ia_voice_transcript_draft"
 KEY_VOICE_STATUS = "ia_voice_status_message"
@@ -21,9 +21,8 @@ KEY_VOICE_ERROR = "ia_voice_last_error"
 _VOICE_UPLOAD_TYPES = ("wav", "mp3", "m4a", "webm", "mpeg", "mp4", "ogg")
 VoicePhase = Literal["ready", "transcribed"]
 
-MSG_NO_AUDIO = "Add a short recording or audio file, then tap Transcribe audio."
 MSG_MIC_TIP = (
-    "If your browser blocks the microphone, use **Upload audio** instead "
+    "If your browser blocks the microphone, use **Upload audio instead** "
     "(works on Streamlit Cloud)."
 )
 
@@ -88,12 +87,15 @@ def voice_status_line(
     *,
     has_audio: bool,
     has_transcript: bool,
+    transcribing: bool = False,
 ) -> str:
+    if transcribing:
+        return "Transcribing…"
     if phase == "transcribed" or has_transcript:
-        return "Status · Transcribed — review and edit below."
+        return "Transcript ready"
     if has_audio:
-        return "Status · Ready to transcribe."
-    return "Status · Waiting for audio."
+        return "Recording or audio selected"
+    return "Ready"
 
 
 def render_voice_hint_html(message: str, *, tone: str = "info") -> str:
@@ -101,38 +103,160 @@ def render_voice_hint_html(message: str, *, tone: str = "info") -> str:
     return f'<p class="ia-voice-hint ia-voice-hint-{tone}">{safe}</p>'
 
 
+def _voice_phase_and_transcript() -> tuple[str, bool, VoicePhase]:
+    if KEY_VOICE_TRANSCRIPT not in st.session_state:
+        st.session_state[KEY_VOICE_TRANSCRIPT] = ""
+    transcript = str(st.session_state.get(KEY_VOICE_TRANSCRIPT) or "")
+    has_transcript = bool(transcript.strip())
+    phase_raw = str(st.session_state.get(KEY_VOICE_PHASE) or "ready")
+    if phase_raw not in ("ready", "transcribed"):
+        phase: VoicePhase = "transcribed" if has_transcript else "ready"
+    else:
+        phase = phase_raw  # type: ignore[assignment]
+    return transcript, has_transcript, phase
+
+
+def _render_voice_status_and_transcribe(
+    recorded: UploadedFile | None,
+    uploaded: UploadedFile | None,
+    *,
+    audio_ready: bool,
+    has_transcript: bool,
+    phase: VoicePhase,
+) -> None:
+    status_line = str(st.session_state.get(KEY_VOICE_STATUS) or "").strip()
+    if not status_line:
+        status_line = voice_status_line(
+            "transcribed" if has_transcript else phase,
+            has_audio=audio_ready,
+            has_transcript=has_transcript,
+        )
+    st.markdown(
+        f'<p class="ia-voice-status">{status_line}</p>',
+        unsafe_allow_html=True,
+    )
+
+    hint = st.session_state.get(KEY_VOICE_HINT) or st.session_state.get(KEY_VOICE_ERROR)
+    if isinstance(hint, str) and hint.strip():
+        tone = "warn" if "couldn't" in hint.lower() or "too large" in hint.lower() else "info"
+        st.markdown(render_voice_hint_html(hint.strip(), tone=tone), unsafe_allow_html=True)
+    elif not audio_ready and not has_transcript:
+        st.markdown(
+            render_voice_hint_html(MSG_NO_AUDIO, tone="info"),
+            unsafe_allow_html=True,
+        )
+
+    transcribe_clicked = st.button(
+        "Transcribe",
+        key="ia_voice_transcribe_btn",
+        type="primary",
+        use_container_width=True,
+        disabled=not audio_ready,
+    )
+    if transcribe_clicked:
+        source = resolve_voice_audio_source(recorded, uploaded)
+        if source is None:
+            st.session_state[KEY_VOICE_HINT] = MSG_NO_AUDIO
+            st.session_state[KEY_VOICE_STATUS] = voice_status_line(
+                "ready", has_audio=False, has_transcript=has_transcript
+            )
+        else:
+            audio_bytes, filename = source
+            st.session_state[KEY_VOICE_STATUS] = voice_status_line(
+                "ready",
+                has_audio=audio_ready,
+                has_transcript=has_transcript,
+                transcribing=True,
+            )
+            st.session_state.pop(KEY_VOICE_HINT, None)
+            with st.spinner("Transcribing…"):
+                result = transcribe_audio(
+                    audio_bytes,
+                    filename=filename,
+                    openai_api_key=session_openai_key(),
+                    session_state=dict(st.session_state),
+                )
+            if result.ok:
+                st.session_state[KEY_VOICE_TRANSCRIPT] = result.transcript
+                st.session_state[KEY_VOICE_PHASE] = "transcribed"
+                st.session_state[KEY_VOICE_HINT] = ""
+                st.session_state[KEY_VOICE_STATUS] = voice_status_line(
+                    "transcribed",
+                    has_audio=audio_ready,
+                    has_transcript=True,
+                )
+            else:
+                st.session_state[KEY_VOICE_PHASE] = "ready"
+                st.session_state[KEY_VOICE_HINT] = result.error or (
+                    "We couldn't transcribe that clip. Try again or type your answer below."
+                )
+                st.session_state[KEY_VOICE_STATUS] = voice_status_line(
+                    "ready", has_audio=audio_ready, has_transcript=has_transcript
+                )
+        st.rerun()
+
+
+def _render_voice_transcript_draft(transcript: str) -> str | None:
+    """Editable draft above chat input; returns text when user sends."""
+    st.markdown(
+        f'<p class="ia-voice-status">{voice_status_line("transcribed", has_audio=False, has_transcript=True)}</p>',
+        unsafe_allow_html=True,
+    )
+    st.text_area(
+        "Transcript draft",
+        key=KEY_VOICE_TRANSCRIPT,
+        height=88,
+        placeholder="Edit your transcript before sending.",
+        label_visibility="collapsed",
+    )
+    transcript = str(st.session_state.get(KEY_VOICE_TRANSCRIPT) or "")
+
+    action_col, clear_col = st.columns([1.4, 0.6], gap="small")
+    with action_col:
+        send_clicked = st.button(
+            "Send transcript",
+            key="ia_voice_send_btn",
+            type="primary",
+            use_container_width=True,
+            disabled=not transcript.strip(),
+        )
+    with clear_col:
+        clear_clicked = st.button(
+            "Clear",
+            key="ia_voice_clear_btn",
+            type="secondary",
+            use_container_width=True,
+        )
+
+    if clear_clicked:
+        clear_voice_transcript_draft(dict(st.session_state))
+        st.rerun()
+
+    if send_clicked and transcript.strip():
+        text = transcript.strip()
+        clear_voice_input_state(dict(st.session_state))
+        return text
+    return None
+
+
 def render_voice_input_panel() -> str | None:
     """
-    Render the collapsed voice input expander for Mock Interview.
+    Render a compact voice composer above the mock interview chat input.
 
     Returns transcript text when the user clicks **Send transcript**; otherwise ``None``.
     Audio is never written to session storage — only the optional text draft key is used.
     """
-    with st.expander("Voice input", expanded=False):
-        st.markdown(
-            '<p class="ia-voice-intro">Practice out loud. Record or upload a short answer, '
-            "review the transcript, then send it.</p>",
-            unsafe_allow_html=True,
-        )
+    transcript, has_transcript, phase = _voice_phase_and_transcript()
 
-        with st.container(key="ia_voice_panel"):
-            # Step 1 — capture
-            with st.container(border=True):
-                st.markdown(
-                    '<p class="ia-voice-step">Step 1 · Record or upload</p>',
-                    unsafe_allow_html=True,
+    with st.container(key="ia_voice_composer"):
+        voice_col, _ = st.columns([1.35, 4.65], gap="small", vertical_alignment="center")
+        with voice_col:
+            with st.popover("Voice answer", icon=":material/mic:"):
+                recorded = st.audio_input(
+                    "Record answer",
+                    key="ia_voice_audio_input",
                 )
-                rec_col, up_col = st.columns([1.15, 0.85], gap="medium")
-                with rec_col:
-                    recorded = st.audio_input(
-                        "Record answer",
-                        key="ia_voice_audio_input",
-                    )
-                with up_col:
-                    st.markdown(
-                        '<p class="ia-voice-upload-label">Upload audio</p>',
-                        unsafe_allow_html=True,
-                    )
+                with st.expander("Upload audio instead", expanded=False):
                     uploaded = st.file_uploader(
                         "Upload audio",
                         type=list(_VOICE_UPLOAD_TYPES),
@@ -140,136 +264,19 @@ def render_voice_input_panel() -> str | None:
                         label_visibility="collapsed",
                         help="WAV, MP3, M4A, or WebM · max 25 MB",
                     )
+                    st.caption(MSG_MIC_TIP.replace("**", ""))
+
+                audio_ready = has_voice_audio_ready(recorded, uploaded)
+                _render_voice_status_and_transcribe(
+                    recorded,
+                    uploaded,
+                    audio_ready=audio_ready,
+                    has_transcript=has_transcript,
+                    phase=phase,
+                )
                 st.caption("Audio is transcribed only and not stored.")
-                st.caption(MSG_MIC_TIP.replace("**", ""))
 
-            audio_ready = has_voice_audio_ready(recorded, uploaded)
-            if KEY_VOICE_TRANSCRIPT not in st.session_state:
-                st.session_state[KEY_VOICE_TRANSCRIPT] = ""
-            transcript = str(st.session_state.get(KEY_VOICE_TRANSCRIPT) or "")
-            has_transcript = bool(transcript.strip())
-            phase = str(st.session_state.get(KEY_VOICE_PHASE) or "ready")
-            if phase not in ("ready", "transcribed"):
-                phase = "transcribed" if has_transcript else "ready"
-
-            # Step 2 — transcribe
-            with st.container(border=True):
-                st.markdown(
-                    '<p class="ia-voice-step">Step 2 · Transcribe</p>',
-                    unsafe_allow_html=True,
-                )
-                status_line = str(st.session_state.get(KEY_VOICE_STATUS) or "").strip()
-                if not status_line:
-                    status_line = voice_status_line(
-                        "transcribed" if has_transcript else "ready",
-                        has_audio=audio_ready,
-                        has_transcript=has_transcript,
-                    )
-                st.markdown(
-                    f'<p class="ia-voice-status">{status_line}</p>',
-                    unsafe_allow_html=True,
-                )
-
-                hint = st.session_state.get(KEY_VOICE_HINT) or st.session_state.get(KEY_VOICE_ERROR)
-                if isinstance(hint, str) and hint.strip():
-                    tone = (
-                        "warn"
-                        if "couldn't" in hint.lower() or "too large" in hint.lower()
-                        else "info"
-                    )
-                    st.markdown(
-                        render_voice_hint_html(hint.strip(), tone=tone), unsafe_allow_html=True
-                    )
-                elif not audio_ready and not has_transcript:
-                    st.markdown(
-                        render_voice_hint_html(MSG_NO_AUDIO, tone="info"),
-                        unsafe_allow_html=True,
-                    )
-
-                transcribe_clicked = st.button(
-                    "Transcribe audio",
-                    key="ia_voice_transcribe_btn",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=not audio_ready,
-                )
-                if transcribe_clicked:
-                    source = resolve_voice_audio_source(recorded, uploaded)
-                    if source is None:
-                        st.session_state[KEY_VOICE_HINT] = MSG_NO_AUDIO
-                        st.session_state[KEY_VOICE_STATUS] = voice_status_line(
-                            "ready", has_audio=False, has_transcript=has_transcript
-                        )
-                    else:
-                        audio_bytes, filename = source
-                        st.session_state[KEY_VOICE_STATUS] = "Status · Transcribing…"
-                        st.session_state.pop(KEY_VOICE_HINT, None)
-                        with st.spinner("Transcribing your answer…"):
-                            result = transcribe_audio(
-                                audio_bytes,
-                                filename=filename,
-                                openai_api_key=session_openai_key(),
-                                session_state=dict(st.session_state),
-                            )
-                        if result.ok:
-                            st.session_state[KEY_VOICE_TRANSCRIPT] = result.transcript
-                            st.session_state[KEY_VOICE_PHASE] = "transcribed"
-                            st.session_state[KEY_VOICE_HINT] = ""
-                            st.session_state[KEY_VOICE_STATUS] = voice_status_line(
-                                "transcribed",
-                                has_audio=audio_ready,
-                                has_transcript=True,
-                            )
-                        else:
-                            st.session_state[KEY_VOICE_PHASE] = "ready"
-                            st.session_state[KEY_VOICE_HINT] = result.error or (
-                                "We couldn't transcribe that clip. Try again or type your answer below."
-                            )
-                            st.session_state[KEY_VOICE_STATUS] = voice_status_line(
-                                "ready", has_audio=audio_ready, has_transcript=has_transcript
-                            )
-                    st.rerun()
-
-            # Step 3 — review & send
-            with st.container(border=True):
-                st.markdown(
-                    '<p class="ia-voice-step">Step 3 · Review and send</p>',
-                    unsafe_allow_html=True,
-                )
-                st.text_area(
-                    "Review transcript",
-                    key=KEY_VOICE_TRANSCRIPT,
-                    height=108,
-                    placeholder="Your transcript will appear here. Edit anything before sending.",
-                    label_visibility="visible",
-                )
-                transcript = str(st.session_state.get(KEY_VOICE_TRANSCRIPT) or "")
-
-                action_col, clear_col = st.columns([1.4, 0.6], gap="small")
-                with action_col:
-                    send_clicked = st.button(
-                        "Send transcript",
-                        key="ia_voice_send_btn",
-                        type="primary",
-                        use_container_width=True,
-                        disabled=not transcript.strip(),
-                    )
-                with clear_col:
-                    clear_clicked = st.button(
-                        "Clear",
-                        key="ia_voice_clear_btn",
-                        type="secondary",
-                        use_container_width=True,
-                        disabled=not transcript.strip() and not has_transcript,
-                    )
-
-                if clear_clicked:
-                    clear_voice_transcript_draft(dict(st.session_state))
-                    st.rerun()
-
-                if send_clicked and transcript.strip():
-                    text = transcript.strip()
-                    clear_voice_input_state(dict(st.session_state))
-                    return text
+        if has_transcript:
+            return _render_voice_transcript_draft(transcript)
 
     return None

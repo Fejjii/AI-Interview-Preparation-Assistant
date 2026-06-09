@@ -98,7 +98,37 @@ def test_has_voice_audio_ready_false_when_empty() -> None:
 
 def test_voice_status_line_transcribed() -> None:
     line = voice_status_line("transcribed", has_audio=True, has_transcript=True)
-    assert "Transcribed" in line
+    assert line == "Transcript ready"
+
+
+def test_voice_status_line_ready_and_audio_selected() -> None:
+    assert voice_status_line("ready", has_audio=False, has_transcript=False) == "Ready"
+    assert (
+        voice_status_line("ready", has_audio=True, has_transcript=False)
+        == "Recording or audio selected"
+    )
+
+
+def test_compact_voice_ui_source_has_no_step_cards() -> None:
+    from pathlib import Path
+
+    voice_ui = Path(__file__).resolve().parents[2] / "src/interview_app/ui/voice_input.py"
+    text = voice_ui.read_text(encoding="utf-8")
+    assert "Step 1" not in text
+    assert "Step 2" not in text
+    assert "Step 3" not in text
+    assert 'expander("Voice input"' not in text
+
+
+def test_compact_voice_ui_renders_popover_and_upload_fallback() -> None:
+    from pathlib import Path
+
+    voice_ui = Path(__file__).resolve().parents[2] / "src/interview_app/ui/voice_input.py"
+    text = voice_ui.read_text(encoding="utf-8")
+    assert 'popover("Voice answer"' in text
+    assert 'expander("Upload audio instead"' in text
+    assert "Transcribe" in text
+    assert "disabled=not audio_ready" in text
 
 
 def test_clear_transcript_resets_draft_and_phase() -> None:
