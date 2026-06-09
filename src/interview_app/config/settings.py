@@ -115,6 +115,13 @@ class Settings(BaseSettings):
         default="data/sessions",
         description="Directory for lightweight session JSON files (relative to cwd or absolute).",
     )
+    enable_streaming: bool = Field(
+        default=True,
+        description=(
+            "When True, Mock Interview conversational assistant replies stream progressively. "
+            "Structured JSON flows (questions, CV, evaluation) always use buffered mode."
+        ),
+    )
 
     security: SecuritySettings = Field(default_factory=SecuritySettings)
 

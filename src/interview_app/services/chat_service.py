@@ -12,13 +12,15 @@ Mutates ``session_state`` mock keys when provided, including ``ia_interview_stat
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
 from interview_app.app.interview_form_config import validate_role_title
 from interview_app.app.ui_settings import UISettings
+from interview_app.config.settings import get_settings
 from interview_app.llm.model_settings import get_model_config
-from interview_app.llm.openai_client import LLMClient
+from interview_app.llm.openai_client import LLMClient, LLMStream
 from interview_app.security.guards import protect_system_prompt
 from interview_app.security.pipeline import run_input_pipeline, run_output_pipeline
 from interview_app.services.answer_evaluator import evaluate_answer
@@ -113,6 +115,20 @@ class LlmTurnDebug:
 
 
 @dataclass
+class ChatTurnStream:
+    """Progressive Mock Interview assistant text; call ``finalize()`` after UI streaming."""
+
+    _llm_stream: LLMStream
+    _finalize_from_response: Callable[[LLMResponse], ChatTurnResult]
+
+    def __iter__(self) -> Iterator[str]:
+        yield from self._llm_stream
+
+    def finalize(self) -> ChatTurnResult:
+        return self._finalize_from_response(self._llm_stream.response)
+
+
+@dataclass
 class ChatTurnResult:
     """Result of one chat turn: assistant message and optional structured evaluation."""
 
@@ -120,6 +136,7 @@ class ChatTurnResult:
     evaluation: EvaluationResult | None = None
     llm_debug: LlmTurnDebug | None = None
     usage_summary: str | None = None
+    stream: ChatTurnStream | None = None
 
 
 def _usage_summary_from_response(resp: LLMResponse | None) -> str | None:
@@ -134,6 +151,7 @@ def run_turn(
     *,
     session_state: dict[str, Any] | None = None,
     openai_api_key: str | None = None,
+    enable_streaming: bool | None = None,
 ) -> ChatTurnResult:
     """
     Run one interviewer turn. ``messages`` must already include the latest user message.
@@ -141,6 +159,9 @@ def run_turn(
     When ``session_state`` is provided, updates mock interview keys for evaluation gating.
     """
     llm_cfg = mock_llm_config_from_settings(settings)
+    stream_enabled = (
+        get_settings().enable_streaming if enable_streaming is None else enable_streaming
+    )
 
     if session_state is not None:
         init_mock_interview_runtime_state(session_state)
@@ -221,7 +242,12 @@ def run_turn(
                 openai_api_key=openai_api_key,
             )
         return _answer_general_question(
-            effective, messages, last_user_content, llm_cfg, openai_api_key=openai_api_key
+            effective,
+            messages,
+            last_user_content,
+            llm_cfg,
+            openai_api_key=openai_api_key,
+            enable_streaming=stream_enabled,
         )
 
     if should_run_full_evaluation(
@@ -292,13 +318,19 @@ def run_turn(
             pending_question=pending,
             session_state=session_state,
             openai_api_key=openai_api_key,
+            enable_streaming=stream_enabled,
         )
         if session_state is not None:
             set_interview_state(session_state, InterviewState.WAITING_FOR_ANSWER)
         return out
 
     return _answer_general_question(
-        effective, messages, last_user_content, llm_cfg, openai_api_key=openai_api_key
+        effective,
+        messages,
+        last_user_content,
+        llm_cfg,
+        openai_api_key=openai_api_key,
+        enable_streaming=stream_enabled,
     )
 
 
@@ -682,6 +714,7 @@ def _interviewer_clarification_or_meta_turn(
     pending_question: str,
     session_state: dict[str, Any] | None,
     openai_api_key: str | None = None,
+    enable_streaming: bool = False,
 ) -> ChatTurnResult:
     """In-character reply for clarification / meta / experience digression (no scoring)."""
     ctx_flat = flatten_session_context_for_evaluator(session_state)
@@ -697,36 +730,21 @@ def _interviewer_clarification_or_meta_turn(
             candidate_topics=topics,
         )
     )
-    try:
-        client = LLMClient(
-            model=llm_cfg.resolved_model_name,
-            temperature=min(0.85, llm_cfg.temperature + 0.15),
-            max_tokens=min(500, max(220, llm_cfg.max_tokens // 2)),
-            top_p=llm_cfg.top_p,
-            api_key=openai_api_key,
-        )
-        extra = [{"role": m.role, "content": m.content} for m in messages[:-1]][-8:]
-        resp = client.generate_response(
-            system_prompt=system,
-            user_prompt=last_user_content,
-            model=llm_cfg.resolved_model_name,
-            temperature=min(0.85, llm_cfg.temperature + 0.15),
-            max_tokens=min(500, max(220, llm_cfg.max_tokens // 2)),
-            top_p=llm_cfg.top_p,
-            extra_messages=extra if extra else None,
-            llm_route="mock_interview_meta",
-        )
-        meta_t = min(0.85, llm_cfg.temperature + 0.15)
-        meta_mt = min(500, max(220, llm_cfg.max_tokens // 2))
-        meta_dbg = LlmTurnDebug(
-            system_prompt=system,
-            user_prompt=last_user_content,
-            model=llm_cfg.resolved_model_name,
-            temperature=meta_t,
-            top_p=llm_cfg.top_p,
-            max_tokens=meta_mt,
-        )
+    meta_t = min(0.85, llm_cfg.temperature + 0.15)
+    meta_mt = min(500, max(220, llm_cfg.max_tokens // 2))
+    meta_dbg = LlmTurnDebug(
+        system_prompt=system,
+        user_prompt=last_user_content,
+        model=llm_cfg.resolved_model_name,
+        temperature=meta_t,
+        top_p=llm_cfg.top_p,
+        max_tokens=meta_mt,
+    )
+    extra = [{"role": m.role, "content": m.content} for m in messages[:-1]][-8:]
+
+    def _finalize_meta(resp: LLMResponse) -> ChatTurnResult:
         out = run_output_pipeline(resp.text, service="chat_service")
+        usage = _usage_summary_from_response(resp)
         if not out.safe:
             return ChatTurnResult(
                 assistant_message=out.reason
@@ -734,11 +752,10 @@ def _interviewer_clarification_or_meta_turn(
                 f"**Question:** {pending_question}",
                 evaluation=None,
                 llm_debug=meta_dbg,
-                usage_summary=_usage_summary_from_response(resp),
+                usage_summary=usage,
             )
         body = (out.text or "").strip()
         suffix = f"\n\n**Question:** {pending_question}"
-        usage = _usage_summary_from_response(resp)
         if pending_question and pending_question not in body:
             return ChatTurnResult(
                 assistant_message=f"{body}{suffix}",
@@ -751,6 +768,21 @@ def _interviewer_clarification_or_meta_turn(
             evaluation=None,
             llm_debug=meta_dbg,
             usage_summary=usage,
+        )
+
+    try:
+        return _run_streamable_conversational_llm(
+            system_prompt=system,
+            user_prompt=last_user_content,
+            extra_messages=extra if extra else None,
+            llm_cfg=llm_cfg,
+            temperature=meta_t,
+            max_tokens=meta_mt,
+            llm_route="mock_interview_meta",
+            openai_api_key=openai_api_key,
+            enable_streaming=enable_streaming,
+            llm_debug=meta_dbg,
+            finalize=_finalize_meta,
         )
     except Exception as exc:
         return ChatTurnResult(
@@ -766,6 +798,7 @@ def _answer_general_question(
     llm_cfg: MockInterviewLLMConfig,
     *,
     openai_api_key: str | None = None,
+    enable_streaming: bool = False,
 ) -> ChatTurnResult:
     """Fallback conversational turn (still uses sidebar LLM parameters)."""
     role = (effective.role_title or "").strip() or "your target"
@@ -775,25 +808,11 @@ def _answer_general_question(
         f"to continue the **{role}** mock interview."
     )
     system_prompt = protect_system_prompt(system)
-    try:
-        client = LLMClient(
-            model=llm_cfg.resolved_model_name,
-            temperature=min(0.7, llm_cfg.temperature + 0.2),
-            max_tokens=min(400, llm_cfg.max_tokens),
-            top_p=llm_cfg.top_p,
-            api_key=openai_api_key,
-        )
-        extra = [{"role": m.role, "content": m.content} for m in messages[:-1]][-6:]
-        resp = client.generate_response(
-            system_prompt=system_prompt,
-            user_prompt=last_user_content,
-            model=llm_cfg.resolved_model_name,
-            temperature=min(0.7, llm_cfg.temperature + 0.2),
-            max_tokens=min(400, llm_cfg.max_tokens),
-            top_p=llm_cfg.top_p,
-            extra_messages=extra if extra else None,
-            llm_route="chat_conversational",
-        )
+    conv_t = min(0.7, llm_cfg.temperature + 0.2)
+    conv_mt = min(400, llm_cfg.max_tokens)
+    extra = [{"role": m.role, "content": m.content} for m in messages[:-1]][-6:]
+
+    def _finalize_general(resp: LLMResponse) -> ChatTurnResult:
         out = run_output_pipeline(resp.text, service="chat_service")
         if not out.safe:
             return ChatTurnResult(
@@ -809,11 +828,86 @@ def _answer_general_question(
             evaluation=None,
             usage_summary=_usage_summary_from_response(resp),
         )
+
+    try:
+        return _run_streamable_conversational_llm(
+            system_prompt=system_prompt,
+            user_prompt=last_user_content,
+            extra_messages=extra if extra else None,
+            llm_cfg=llm_cfg,
+            temperature=conv_t,
+            max_tokens=conv_mt,
+            llm_route="chat_conversational",
+            openai_api_key=openai_api_key,
+            enable_streaming=enable_streaming,
+            llm_debug=None,
+            finalize=_finalize_general,
+        )
     except Exception as exc:
         return ChatTurnResult(
             assistant_message=f"{safe_user_message(exc)} You can continue when you’re ready.",
             evaluation=None,
         )
+
+
+def _run_streamable_conversational_llm(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    extra_messages: list[dict[str, Any]] | None,
+    llm_cfg: MockInterviewLLMConfig,
+    temperature: float,
+    max_tokens: int,
+    llm_route: str,
+    openai_api_key: str | None,
+    enable_streaming: bool,
+    llm_debug: LlmTurnDebug | None,
+    finalize: Callable[[LLMResponse], ChatTurnResult],
+) -> ChatTurnResult:
+    """Buffered or streaming conversational LLM call with post-stream output validation."""
+    client = LLMClient(
+        model=llm_cfg.resolved_model_name,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        top_p=llm_cfg.top_p,
+        api_key=openai_api_key,
+    )
+    common_kwargs = {
+        "system_prompt": system_prompt,
+        "user_prompt": user_prompt,
+        "model": llm_cfg.resolved_model_name,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": llm_cfg.top_p,
+        "extra_messages": extra_messages,
+        "llm_route": llm_route,
+    }
+
+    if enable_streaming:
+        try:
+            llm_stream = client.stream_response(**common_kwargs)
+            return ChatTurnResult(
+                assistant_message="",
+                evaluation=None,
+                llm_debug=llm_debug,
+                stream=ChatTurnStream(
+                    _llm_stream=llm_stream,
+                    _finalize_from_response=finalize,
+                ),
+            )
+        except Exception:
+            _logger.debug("Streaming unavailable for %s; falling back to buffered mode.", llm_route)
+
+    resp = client.generate_response(**common_kwargs)
+    result = finalize(resp)
+    if llm_debug is not None and result.llm_debug is None:
+        return ChatTurnResult(
+            assistant_message=result.assistant_message,
+            evaluation=result.evaluation,
+            llm_debug=llm_debug,
+            usage_summary=result.usage_summary,
+        )
+    return result
 
 
 def _format_evaluation_markdown(ev: EvaluationResult) -> str:

@@ -349,6 +349,10 @@ def test_skip_and_next_routes_as_control_not_answer(message: str, pending: str) 
     [
         ("What is the capital of France?", OffTopicCategory.STATIC_FACTUAL),
         ("What is the Bitcoin price today?", OffTopicCategory.LIVE_DATA),
+        ("What is the weather today?", OffTopicCategory.LIVE_DATA),
+        ("What are the latest AI news?", OffTopicCategory.LIVE_DATA),
+        ("What happened in the market today?", OffTopicCategory.LIVE_DATA),
+        ("What is the current stock price?", OffTopicCategory.LIVE_DATA),
         ("Can you give me a recipe for pasta?", OffTopicCategory.UNRELATED),
     ],
 )
@@ -359,6 +363,27 @@ def test_off_topic_classification(message: str, expected_category: OffTopicCateg
     turn = detect_user_turn_type(message, pending_question=pending)
     assert kind == MockInterviewTurnKind.OFF_TOPIC_QUESTION
     assert turn == UserTurnType.OFF_TOPIC
+    assert (
+        should_run_full_evaluation(
+            pending_question=pending,
+            turn_type=turn,
+            interview_state=InterviewState.WAITING_FOR_ANSWER,
+            user_text=message,
+        )
+        is False
+    )
+
+
+def test_hello_how_are_you_today_is_small_talk_not_live_data() -> None:
+    """Casual \"today\" in greetings must not trigger live-data off-topic routing."""
+    message = "Hello, how are you today?"
+    pending = "Explain your approach to database indexing."
+
+    assert classify_off_topic_category(message) is None
+    kind = detect_mock_interview_turn_kind(message, pending)
+    turn = detect_user_turn_type(message, pending_question=pending)
+    assert kind == MockInterviewTurnKind.CLARIFICATION_QUESTION
+    assert turn == UserTurnType.CLARIFICATION
     assert (
         should_run_full_evaluation(
             pending_question=pending,

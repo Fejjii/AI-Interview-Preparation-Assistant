@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from typing import Any
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI, RateLimitError
@@ -60,6 +61,55 @@ class ClientParams:
     temperature: float
     top_p: float | None
     max_tokens: int | None
+
+
+@dataclass
+class LLMStream:
+    """
+    Iterable assistant text stream from ``LLMClient.stream_response``.
+
+    Consume via ``for chunk in stream`` (or ``st.write_stream(stream)``), then read
+    ``stream.response`` for the aggregated ``LLMResponse`` (latency always set;
+    token usage when the API provides it).
+    """
+
+    _chunks: list[str] = field(default_factory=list, repr=False)
+    _response: LLMResponse | None = field(default=None, repr=False)
+    _completed: bool = field(default=False, repr=False)
+    _error: BaseException | None = field(default=None, repr=False)
+
+    def __iter__(self) -> Iterator[str]:
+        if self._completed:
+            return iter(())
+        return self._consume()
+
+    def _consume(self) -> Iterator[str]:
+        try:
+            yield from self._produce()
+        except BaseException as exc:
+            self._error = exc
+            self._completed = True
+            raise
+        finally:
+            if not self._completed:
+                self._completed = True
+
+    def _produce(self) -> Iterator[str]:
+        raise NotImplementedError
+
+    @property
+    def response(self) -> LLMResponse:
+        if not self._completed:
+            raise RuntimeError("Stream not finished; consume all chunks before reading response.")
+        if self._error is not None:
+            raise self._error
+        if self._response is None:
+            raise RuntimeError("Stream completed without a response.")
+        return self._response
+
+    @property
+    def completed(self) -> bool:
+        return self._completed
 
 
 def _log_llm_audit(
@@ -258,3 +308,107 @@ class LLMClient:
             latency_ms=latency_ms,
             provider="openai",
         )
+
+    def stream_response(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        model: str | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        extra_messages: list[dict[str, Any]] | None = None,
+        llm_route: str | None = None,
+    ) -> LLMStream:
+        """
+        Stream assistant text deltas; aggregate into ``LLMStream.response`` after iteration.
+
+        Token usage is included when the API exposes it on the final stream chunk;
+        otherwise ``response.usage`` is ``None`` and latency is still recorded.
+        """
+        call_model = resolve_openai_model_id(model) if model is not None else self._defaults.model
+        resolved = ClientParams(
+            model=call_model,
+            temperature=temperature if temperature is not None else self._defaults.temperature,
+            top_p=top_p if top_p is not None else self._defaults.top_p,
+            max_tokens=max_tokens if max_tokens is not None else self._defaults.max_tokens,
+        )
+
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        if extra_messages:
+            messages = messages[:-1] + extra_messages + messages[-1:]
+
+        client = self._client
+        timeout_s = self._timeout_s
+
+        class _OpenAIStream(LLMStream):
+            def _produce(self) -> Iterator[str]:
+                t0 = time.monotonic()
+                raw_response_id: str | None = None
+                resp_model = resolved.model
+                usage: LLMUsage | None = None
+                try:
+                    stream = client.chat.completions.create(
+                        model=resolved.model,
+                        messages=messages,
+                        temperature=resolved.temperature,
+                        top_p=resolved.top_p,
+                        max_tokens=resolved.max_tokens,
+                        timeout=timeout_s,
+                        stream=True,
+                        stream_options={"include_usage": True},
+                    )
+                    for event in stream:
+                        if getattr(event, "id", None):
+                            raw_response_id = event.id
+                        if getattr(event, "model", None):
+                            resp_model = event.model
+                        event_usage = getattr(event, "usage", None)
+                        if event_usage is not None:
+                            usage = LLMUsage(
+                                prompt_tokens=getattr(event_usage, "prompt_tokens", None),
+                                completion_tokens=getattr(event_usage, "completion_tokens", None),
+                                total_tokens=getattr(event_usage, "total_tokens", None),
+                            )
+                        if not event.choices:
+                            continue
+                        delta = event.choices[0].delta.content or ""
+                        if delta:
+                            self._chunks.append(delta)
+                            yield delta
+                except Exception as exc:
+                    latency_ms = (time.monotonic() - t0) * 1000.0
+                    _log_llm_audit(
+                        llm_route=llm_route,
+                        model=resolved.model,
+                        success=False,
+                        latency_ms=latency_ms,
+                        usage=None,
+                        error_type=type(exc).__name__,
+                    )
+                    raise
+
+                latency_ms = (time.monotonic() - t0) * 1000.0
+                text = "".join(self._chunks).strip()
+                self._response = LLMResponse(
+                    text=text,
+                    model=resp_model,
+                    usage=usage,
+                    raw_response_id=raw_response_id,
+                    latency_ms=latency_ms,
+                    provider="openai",
+                )
+                self._completed = True
+                _log_llm_audit(
+                    llm_route=llm_route,
+                    model=resp_model,
+                    success=True,
+                    latency_ms=latency_ms,
+                    usage=usage,
+                )
+
+        return _OpenAIStream()

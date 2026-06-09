@@ -22,6 +22,7 @@ def test_settings_defaults() -> None:
     assert settings.openai_temperature == 0.2
     assert settings.openai_max_retries == 3
     assert settings.show_diagnostics is False
+    assert settings.enable_streaming is True
 
 
 def test_show_sidebar_diagnostics_requires_dev_and_flag(monkeypatch) -> None:

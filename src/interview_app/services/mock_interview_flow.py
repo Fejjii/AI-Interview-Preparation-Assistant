@@ -553,7 +553,9 @@ def _combined_greeting_ready(t: str) -> bool:
 
 
 def _is_clarification(t: str, original: str) -> bool:
-    if any(m in t for m in _UNRELATED_REQUEST_MARKERS + _LIVE_DATA_MARKERS):
+    if any(m in t for m in _UNRELATED_REQUEST_MARKERS):
+        return False
+    if _looks_like_live_data_request(t):
         return False
     if any(p in t for p in _CLARIFICATION_PHRASES):
         return True
@@ -613,22 +615,80 @@ _SKIP_NEXT_PHRASES: tuple[str, ...] = (
     "next question please",
 )
 
-_LIVE_DATA_MARKERS: tuple[str, ...] = (
-    "today",
+_LIVE_DATA_PHRASES: tuple[str, ...] = (
     "right now",
     "current price",
+    "current stock price",
     "price today",
-    "bitcoin",
-    "btc price",
-    "stock price",
     "weather today",
+    "weather right now",
     "latest news",
+    "latest ai news",
     "live data",
     "market data",
     "exchange rate",
     "crypto price",
     "share price",
+    "stock price",
+    "bitcoin",
+    "btc price",
+    "market today",
+    "in the market today",
+    "what happened in the market",
 )
+
+_LIVE_DATA_TODAY_TOPIC_WORDS: tuple[str, ...] = (
+    "price",
+    "weather",
+    "news",
+    "market",
+    "stock",
+    "bitcoin",
+    "btc",
+    "crypto",
+    "exchange",
+    "share",
+    "happened",
+    "latest",
+)
+
+_SOCIAL_SMALL_TALK_PHRASES: tuple[str, ...] = (
+    "how are you",
+    "how's it going",
+    "hows it going",
+    "what's up",
+    "whats up",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "nice to meet you",
+    "hello there",
+    "hi there",
+    "hey there",
+)
+
+
+def _looks_like_live_data_request(t: str) -> bool:
+    """True for real-time / current-information requests, not casual small talk with \"today\"."""
+    if any(phrase in t for phrase in _LIVE_DATA_PHRASES):
+        return True
+    if "today" not in t:
+        return False
+    return any(topic in t for topic in _LIVE_DATA_TODAY_TOPIC_WORDS)
+
+
+def _is_social_small_talk(t: str, original: str) -> bool:
+    """Brief greeting or rapport-building; not an interview answer or live-data query."""
+    _ = t
+    t_norm = _norm(original)
+    if len(t_norm.split()) > 12:
+        return False
+    if any(phrase in t_norm for phrase in _SOCIAL_SMALL_TALK_PHRASES):
+        return True
+    if t_norm in ("hello", "hi", "hey") or t_norm.startswith(("hello ", "hi ", "hey ")):
+        return len(t_norm.split()) <= 6
+    return False
+
 
 _UNRELATED_REQUEST_MARKERS: tuple[str, ...] = (
     "recipe",
@@ -710,7 +770,9 @@ def classify_off_topic_category(message: str) -> OffTopicCategory | None:
         return None
     if _wants_fresh_question(t):
         return None
-    if any(m in t for m in _LIVE_DATA_MARKERS):
+    if _is_social_small_talk(t, message):
+        return None
+    if _looks_like_live_data_request(t):
         return OffTopicCategory.LIVE_DATA
     if any(m in t for m in _UNRELATED_REQUEST_MARKERS):
         return OffTopicCategory.UNRELATED

@@ -1,6 +1,7 @@
 """Mock Interview workspace tab."""
 
 import json
+import logging
 
 import streamlit as st
 
@@ -12,7 +13,8 @@ from interview_app.app.conversation_state import (
 )
 from interview_app.app.tabs.shared import render_section_heading, session_openai_key
 from interview_app.app.ui_settings import UISettings
-from interview_app.services.chat_service import run_turn as chat_run_turn
+from interview_app.config.settings import get_settings
+from interview_app.services.chat_service import LlmTurnDebug, run_turn as chat_run_turn
 from interview_app.storage.sessions import save_session
 from interview_app.ui.display import show_error, show_prompt_debug, show_settings_debug
 from interview_app.utils.errors import safe_user_message
@@ -107,6 +109,63 @@ def _render_session_row_compact(settings: UISettings) -> None:
             )
 
 
+_logger = logging.getLogger(__name__)
+
+
+def _run_mock_turn_with_optional_stream(
+    settings: UISettings,
+    messages: list,
+) -> tuple[str, str | None, LlmTurnDebug | None]:
+    """Run one mock interview turn; stream conversational replies when enabled."""
+    enable_stream = get_settings().enable_streaming
+    try:
+        with st.spinner("Thinking…"):
+            result = chat_run_turn(
+                settings,
+                messages,
+                session_state=st.session_state,
+                openai_api_key=session_openai_key(),
+                enable_streaming=enable_stream,
+            )
+    except Exception as exc:
+        msg = safe_user_message(exc)
+        return f"Sorry, {msg}", None, None
+
+    if result.stream is not None:
+        buffer: list[str] = []
+        try:
+            with st.chat_message("assistant"):
+                placeholder = st.empty()
+                for chunk in result.stream:
+                    buffer.append(chunk)
+                    placeholder.markdown("".join(buffer))
+                finalized = result.stream.finalize()
+                placeholder.markdown(finalized.assistant_message)
+            return (
+                finalized.assistant_message,
+                finalized.usage_summary,
+                finalized.llm_debug,
+            )
+        except Exception:
+            _logger.debug("Mock interview stream failed; retrying buffered mode.", exc_info=True)
+            fallback = chat_run_turn(
+                settings,
+                messages,
+                session_state=st.session_state,
+                openai_api_key=session_openai_key(),
+                enable_streaming=False,
+            )
+            with st.chat_message("assistant"):
+                st.markdown(fallback.assistant_message)
+            return (
+                fallback.assistant_message,
+                fallback.usage_summary,
+                fallback.llm_debug,
+            )
+
+    return result.assistant_message, result.usage_summary, result.llm_debug
+
+
 def _render_mock_interview_tab(settings: UISettings) -> None:
     """Primary workspace: session row + wide chat."""
     render_section_heading(
@@ -141,31 +200,28 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
         if st.session_state.get("response_language") is None and prompt.strip():
             st.session_state.response_language = detect_language(prompt)
         append_message("user", prompt)
-        with st.spinner("Thinking…"):
-            try:
-                updated = get_messages()
-                result = chat_run_turn(
-                    settings,
-                    updated,
-                    session_state=st.session_state,
-                    openai_api_key=session_openai_key(),
-                )
-                append_message("assistant", result.assistant_message)
-                if result.usage_summary:
-                    st.session_state["ia_mock_last_usage"] = result.usage_summary
-                if result.llm_debug is not None:
-                    st.session_state["ia_mock_last_llm_debug"] = {
-                        "system_prompt": result.llm_debug.system_prompt,
-                        "user_prompt": result.llm_debug.user_prompt,
-                        "model": result.llm_debug.model,
-                        "temperature": result.llm_debug.temperature,
-                        "top_p": result.llm_debug.top_p,
-                        "max_tokens": result.llm_debug.max_tokens,
-                    }
-            except Exception as exc:
-                msg = safe_user_message(exc)
-                append_message("assistant", f"Sorry, {msg}")
-                show_error(title="Chat error", body=msg)
+        try:
+            updated = get_messages()
+            assistant_message, usage_summary, llm_debug = _run_mock_turn_with_optional_stream(
+                settings,
+                updated,
+            )
+            append_message("assistant", assistant_message)
+            if usage_summary:
+                st.session_state["ia_mock_last_usage"] = usage_summary
+            if llm_debug is not None:
+                st.session_state["ia_mock_last_llm_debug"] = {
+                    "system_prompt": llm_debug.system_prompt,
+                    "user_prompt": llm_debug.user_prompt,
+                    "model": llm_debug.model,
+                    "temperature": llm_debug.temperature,
+                    "top_p": llm_debug.top_p,
+                    "max_tokens": llm_debug.max_tokens,
+                }
+        except Exception as exc:
+            msg = safe_user_message(exc)
+            append_message("assistant", f"Sorry, {msg}")
+            show_error(title="Chat error", body=msg)
         st.rerun()
 
     usage = st.session_state.get("ia_mock_last_usage")
