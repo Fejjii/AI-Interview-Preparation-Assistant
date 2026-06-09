@@ -23,6 +23,12 @@ logger = logging.getLogger("interview_app.transcription")
 
 ALLOWED_AUDIO_EXTENSIONS = frozenset({"wav", "mp3", "m4a", "webm", "mpeg", "mp4", "ogg", "oga"})
 
+MSG_NO_AUDIO = "Add a short recording or audio file, then tap Transcribe audio."
+MSG_UNSUPPORTED_FORMAT = "That file type isn't supported. Try WAV, MP3, M4A, or WebM."
+MSG_MISSING_API_KEY = (
+    "No API key is available. Switch to Demo access or apply your OpenAI key in the sidebar."
+)
+
 
 @dataclass(frozen=True)
 class TranscriptionResult:
@@ -44,16 +50,26 @@ def _resolve_api_key(settings: Settings, openai_api_key: str | None) -> str:
         secret = settings.openai_api_key.get_secret_value()
         if secret and str(secret).strip():
             return str(secret).strip()
-    raise ValueError(
-        "OpenAI API key is missing. Set OPENAI_API_KEY for Demo mode or apply your own key in BYO mode."
-    )
+    raise ValueError(MSG_MISSING_API_KEY)
+
+
+def file_extension(filename: str) -> str:
+    name = (filename or "").strip()
+    if "." not in name:
+        return ""
+    return name.rsplit(".", 1)[-1].lower()
+
+
+def is_supported_audio_filename(filename: str) -> bool:
+    ext = file_extension(filename)
+    return not ext or ext in ALLOWED_AUDIO_EXTENSIONS
 
 
 def _normalize_filename(filename: str) -> str:
     name = (filename or "recording.webm").strip()
     if "." not in name:
         return f"{name}.webm"
-    ext = name.rsplit(".", 1)[-1].lower()
+    ext = file_extension(name)
     if ext not in ALLOWED_AUDIO_EXTENSIONS:
         return f"{name}.webm"
     return name
@@ -99,15 +115,16 @@ def transcribe_audio(
     max_bytes = cfg.security.voice_max_audio_bytes
 
     if not audio_bytes:
-        return TranscriptionResult(
-            ok=False, error="No audio received. Record or upload a file first."
-        )
+        return TranscriptionResult(ok=False, error=MSG_NO_AUDIO)
+
+    if not is_supported_audio_filename(filename):
+        return TranscriptionResult(ok=False, error=MSG_UNSUPPORTED_FORMAT)
 
     if len(audio_bytes) > max_bytes:
         mb = max(1, max_bytes // (1024 * 1024))
         return TranscriptionResult(
             ok=False,
-            error=f"Audio file is too large. Please keep recordings under {mb} MB.",
+            error=f"That clip is too large — please keep it under {mb} MB.",
         )
 
     blocked = maybe_block_demo_llm_call(session_state)

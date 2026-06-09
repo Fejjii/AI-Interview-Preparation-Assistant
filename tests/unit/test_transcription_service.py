@@ -14,7 +14,7 @@ from interview_app.app.usage_mode import (
     get_demo_usage_count,
 )
 from interview_app.config.settings import Settings, get_settings
-from interview_app.services.transcription_service import transcribe_audio
+from interview_app.services.transcription_service import MSG_UNSUPPORTED_FORMAT, transcribe_audio
 
 
 def _demo_session(count: int = 0) -> dict[str, object]:
@@ -150,3 +150,14 @@ def test_oversized_audio_rejected_without_api_call() -> None:
     assert result.ok is False
     assert "too large" in (result.error or "").lower()
     mock_cls.assert_not_called()
+
+
+def test_unsupported_format_rejected() -> None:
+    result = transcribe_audio(
+        b"x",
+        filename="notes.txt",
+        openai_api_key="sk-12345678901234567890123456789012",
+        session_state=_demo_session(),
+    )
+    assert result.ok is False
+    assert result.error == MSG_UNSUPPORTED_FORMAT

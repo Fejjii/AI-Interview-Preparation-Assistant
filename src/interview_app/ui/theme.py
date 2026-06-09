@@ -400,6 +400,8 @@ div[data-baseweb="popover"] [role="option"] span {
 [data-testid="stMain"] .st-key-cv_btn_practice button,
 [data-testid="stMain"] .st-key-cv_btn_evaluate_practice button,
 [data-testid="stMain"] .st-key-btn_evaluate_answer button,
+[data-testid="stMain"] .st-key-ia_voice_transcribe_btn button,
+[data-testid="stMain"] .st-key-ia_voice_send_btn button,
 [data-testid="stSidebar"] .st-key-um_apply_btn button {
     background-color: var(--st-btn-primary-bg) !important;
     color: var(--st-btn-primary-text) !important;
@@ -413,6 +415,8 @@ div[data-baseweb="popover"] [role="option"] span {
 [data-testid="stMain"] .st-key-cv_btn_practice button:hover:not(:disabled),
 [data-testid="stMain"] .st-key-cv_btn_evaluate_practice button:hover:not(:disabled),
 [data-testid="stMain"] .st-key-btn_evaluate_answer button:hover:not(:disabled),
+[data-testid="stMain"] .st-key-ia_voice_transcribe_btn button:hover:not(:disabled),
+[data-testid="stMain"] .st-key-ia_voice_send_btn button:hover:not(:disabled),
 [data-testid="stSidebar"] .st-key-um_apply_btn button:hover:not(:disabled) {
     filter: brightness(1.08) !important;
 }
@@ -853,6 +857,78 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     color: var(--text-secondary);
     line-height: 1.5;
     margin: 0;
+}}
+.ia-voice-intro {{
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin: 0 0 0.65rem 0;
+}}
+.ia-voice-step {{
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 0 0 0.55rem 0;
+}}
+.ia-voice-status {{
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem 0;
+}}
+.ia-voice-upload-label {{
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 0.35rem 0;
+}}
+.ia-voice-hint {{
+    font-size: 0.84rem;
+    line-height: 1.45;
+    margin: 0 0 0.55rem 0;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.55rem;
+    border: 1px solid var(--border-primary);
+}}
+.ia-voice-hint-info {{
+    background: var(--info-bg);
+    color: var(--text-secondary);
+    border-color: rgba(37, 99, 235, 0.18);
+}}
+.ia-voice-hint-warn {{
+    background: var(--warning-bg);
+    color: var(--text-secondary);
+    border-color: rgba(217, 119, 6, 0.22);
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stVerticalBlockBorderWrapper"] {{
+    background: var(--bg-card);
+    border-color: var(--border-primary) !important;
+    margin-bottom: 0.55rem;
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stAudioInput"] {{
+    margin-bottom: 0.15rem;
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stAudioInput"] > div {{
+    max-height: 5.5rem;
+    overflow: hidden;
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploader"] {{
+    padding-top: 0 !important;
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploader"] section {{
+    padding: 0.45rem 0.55rem !important;
+    min-height: 0 !important;
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploaderDropzone"] {{
+    min-height: 3.25rem !important;
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stFileUploaderDropzone"] div {{
+    font-size: 0.8rem !important;
+}}
+[data-testid="stMain"] .st-key-ia_voice_panel [data-testid="stTextArea"] textarea {{
+    min-height: 6.5rem !important;
+    font-size: 0.92rem !important;
 }}
 .ia-section-head {{
     margin: 0 0 0.75rem 0;
