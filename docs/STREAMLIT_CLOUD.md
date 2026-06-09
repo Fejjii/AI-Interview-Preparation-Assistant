@@ -31,8 +31,13 @@ Official flow for hosting this app at [share.streamlit.io](https://share.streaml
    ```toml
    APP_ENV = "prod"
    OPENAI_MAX_RETRIES = "3"
+   OPENAI_TRANSCRIPTION_MODEL = "whisper-1"
    SECURITY_MODERATION_ENABLED = "true"
+   DEMO_MAX_LLM_CALLS_PER_SESSION = "10"
    ```
+
+   Voice input in **Mock Interview** uses the same `OPENAI_API_KEY` for Demo mode (or the user's BYO key).
+   Each transcription counts as **one** demo API call toward `DEMO_MAX_LLM_CALLS_PER_SESSION`.
 
    Developer diagnostics stay hidden on Cloud (`APP_ENV=prod`). To enable locally,
    set `APP_ENV=dev` and `SHOW_DIAGNOSTICS=true` in `.env`.
@@ -52,6 +57,7 @@ BYO mode still works in the UI without this secret, but portfolio demos typicall
 
 1. **Session setup:** Demo mode, apply if needed.
 2. **Mock Interview:** Start interview → answer one question → confirm feedback appears.
+   Optional: expand **Voice input** → record or upload a short clip → **Transcribe** → edit → **Send transcript**.
 3. **Interview Questions:** Generate a small question set.
 4. **CV Interview Prep:** Upload a short sample PDF/DOCX (synthetic CV) → run extraction or practice flow.
 5. **Feedback / Evaluation:** Submit a sample answer and confirm structured feedback.

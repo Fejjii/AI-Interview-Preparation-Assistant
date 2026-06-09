@@ -24,6 +24,7 @@ def test_settings_defaults() -> None:
     assert settings.show_diagnostics is False
     assert settings.enable_streaming is True
     assert settings.demo_max_llm_calls_per_session == 10
+    assert settings.openai_transcription_model == "whisper-1"
 
 
 def test_show_sidebar_diagnostics_requires_dev_and_flag(monkeypatch) -> None:

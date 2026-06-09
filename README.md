@@ -12,7 +12,7 @@
 
 | Area | What it does |
 |------|----------------|
-| **Mock interview** | Chat-style practice with turn routing (clarifications vs answers), scoring, and follow-up questions |
+| **Mock interview** | Chat-style practice with turn routing (clarifications vs answers), scoring, follow-up questions, and optional **voice answer** input (transcribe → review → send) |
 | **Interview questions** | Role-aware question sets; optional **Compare Prompt Strategies** side by side |
 | **CV interview prep** | PDF/DOCX upload, structured extraction, practice or full prep modes |
 | **Answer feedback** | Markdown-parsed scores, strengths, gaps, model answers, follow-ups |

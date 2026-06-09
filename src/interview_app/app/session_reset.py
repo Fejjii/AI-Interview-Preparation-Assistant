@@ -21,6 +21,7 @@ from interview_app.app.usage_mode import (
 )
 from interview_app.security.rate_limiter import reset_rate_limit
 from interview_app.services.mock_interview_flow import clear_mock_interview_runtime_state
+from interview_app.ui.voice_input import clear_voice_input_state
 
 # Widget/session keys to drop so Streamlit remounts fresh inputs (feedback, CV form, etc.).
 _WORKSPACE_WIDGET_KEYS: tuple[str, ...] = (
@@ -82,6 +83,7 @@ def reset_all_workspace_state(session_state: dict[str, Any]) -> None:
     session_state["current_session_id"] = None
     session_state["session_meta"] = None
     clear_mock_interview_runtime_state(session_state)
+    clear_voice_input_state(session_state)
     session_state["response_language"] = None
     session_state["ia_pending_generate"] = False
     session_state.pop("ia_compare_pair", None)

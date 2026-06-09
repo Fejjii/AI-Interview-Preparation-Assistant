@@ -17,6 +17,7 @@ from interview_app.config.settings import get_settings
 from interview_app.services.chat_service import LlmTurnDebug, run_turn as chat_run_turn
 from interview_app.storage.sessions import save_session
 from interview_app.ui.display import show_error, show_prompt_debug, show_settings_debug
+from interview_app.ui.voice_input import render_voice_input_panel
 from interview_app.utils.errors import safe_user_message
 from interview_app.utils.language import detect_language
 from interview_app.utils.mock_interview_export import (
@@ -166,6 +167,38 @@ def _run_mock_turn_with_optional_stream(
     return result.assistant_message, result.usage_summary, result.llm_debug
 
 
+def _handle_mock_user_message(settings: UISettings, prompt: str) -> None:
+    """Append a user message and run one mock interview turn (text or voice transcript)."""
+    if not prompt.strip():
+        return
+    if st.session_state.get("response_language") is None:
+        st.session_state.response_language = detect_language(prompt)
+    append_message("user", prompt)
+    try:
+        updated = get_messages()
+        assistant_message, usage_summary, llm_debug = _run_mock_turn_with_optional_stream(
+            settings,
+            updated,
+        )
+        append_message("assistant", assistant_message)
+        if usage_summary:
+            st.session_state["ia_mock_last_usage"] = usage_summary
+        if llm_debug is not None:
+            st.session_state["ia_mock_last_llm_debug"] = {
+                "system_prompt": llm_debug.system_prompt,
+                "user_prompt": llm_debug.user_prompt,
+                "model": llm_debug.model,
+                "temperature": llm_debug.temperature,
+                "top_p": llm_debug.top_p,
+                "max_tokens": llm_debug.max_tokens,
+            }
+    except Exception as exc:
+        msg = safe_user_message(exc)
+        append_message("assistant", f"Sorry, {msg}")
+        show_error(title="Chat error", body=msg)
+    st.rerun()
+
+
 def _render_mock_interview_tab(settings: UISettings) -> None:
     """Primary workspace: session row + wide chat."""
     render_section_heading(
@@ -196,33 +229,14 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
                 with st.chat_message(msg.role):
                     st.markdown(msg.content)
 
+    voice_transcript = render_voice_input_panel()
+    if voice_transcript:
+        _handle_mock_user_message(settings, voice_transcript)
+        return
+
     if prompt := st.chat_input("Type your answer or message…"):
-        if st.session_state.get("response_language") is None and prompt.strip():
-            st.session_state.response_language = detect_language(prompt)
-        append_message("user", prompt)
-        try:
-            updated = get_messages()
-            assistant_message, usage_summary, llm_debug = _run_mock_turn_with_optional_stream(
-                settings,
-                updated,
-            )
-            append_message("assistant", assistant_message)
-            if usage_summary:
-                st.session_state["ia_mock_last_usage"] = usage_summary
-            if llm_debug is not None:
-                st.session_state["ia_mock_last_llm_debug"] = {
-                    "system_prompt": llm_debug.system_prompt,
-                    "user_prompt": llm_debug.user_prompt,
-                    "model": llm_debug.model,
-                    "temperature": llm_debug.temperature,
-                    "top_p": llm_debug.top_p,
-                    "max_tokens": llm_debug.max_tokens,
-                }
-        except Exception as exc:
-            msg = safe_user_message(exc)
-            append_message("assistant", f"Sorry, {msg}")
-            show_error(title="Chat error", body=msg)
-        st.rerun()
+        _handle_mock_user_message(settings, prompt)
+        return
 
     usage = st.session_state.get("ia_mock_last_usage")
     if usage:

@@ -60,6 +60,10 @@ class SecuritySettings(BaseSettings):
         default=20_000,
         description="Maximum characters of extracted CV text sent through guardrails and to the LLM.",
     )
+    voice_max_audio_bytes: int = Field(
+        default=25 * 1024 * 1024,
+        description="Maximum upload size for Mock Interview voice answers (wav/mp3/m4a/webm).",
+    )
 
 
 class Settings(BaseSettings):
@@ -110,6 +114,10 @@ class Settings(BaseSettings):
             "Max retries for transient OpenAI API failures (429, 5xx, timeouts). "
             "Uses the OpenAI SDK built-in exponential backoff with jitter."
         ),
+    )
+    openai_transcription_model: str = Field(
+        default="whisper-1",
+        description="OpenAI model id for Mock Interview voice transcription (e.g. whisper-1).",
     )
     sessions_dir: str = Field(
         default="data/sessions",
