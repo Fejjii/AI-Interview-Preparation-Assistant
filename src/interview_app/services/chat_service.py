@@ -27,6 +27,7 @@ from interview_app.services.context_extractor import (
     interview_topics_non_empty,
 )
 from interview_app.services.context_manager import (
+    build_different_question_suffix,
     build_evaluation_active_question_hints,
     build_question_generation_context_suffix,
     expected_focus_hints,
@@ -43,10 +44,13 @@ from interview_app.services.interview_generator import generate_questions
 from interview_app.services.mock_interview_flow import (
     InterviewState,
     MockInterviewPhase,
+    OffTopicCategory,
     UserMessageKind,
     UserTurnType,
     append_candidate_topics,
+    brief_static_factual_answer,
     build_interviewer_prompt,
+    classify_off_topic_category,
     classify_user_message,
     clear_mock_interview_runtime_state,
     detect_mock_interview_turn_kind,
@@ -56,8 +60,11 @@ from interview_app.services.mock_interview_flow import (
     get_candidate_topics,
     get_interview_state,
     get_pending_question,
+    get_recent_asked_questions,
     infer_focus_override_from_message,
     init_mock_interview_runtime_state,
+    is_skip_or_next_request,
+    record_asked_question,
     set_interview_state,
     set_mock_state,
     should_run_full_evaluation,
@@ -254,6 +261,12 @@ def run_turn(
             openai_api_key=openai_api_key,
         )
 
+    if turn_type == UserTurnType.OFF_TOPIC and pending:
+        return _handle_off_topic_turn(
+            last_user_content,
+            pending_question=pending,
+        )
+
     if turn_type == UserTurnType.GREETING:
         return _generate_next_question_turn(
             effective,
@@ -343,6 +356,8 @@ def _generate_next_question_turn(
     lead_in: str | None = None,
     interview_focus: str | None = None,
     active_question_type: str | None = None,
+    extra_context_suffix: str = "",
+    skipped_question: str | None = None,
 ) -> ChatTurnResult:
     """Generate one interview question; store canonical question text in session."""
     if session_state is not None:
@@ -360,6 +375,9 @@ def _generate_next_question_turn(
     focus = effective.interview_focus if interview_focus is None else interview_focus
     last_user = _latest_user_text(messages)
     ctx_suffix = build_question_generation_context_suffix(last_user, session_state)
+    diff_suffix = (extra_context_suffix or "").strip()
+    if diff_suffix:
+        ctx_suffix = f"{ctx_suffix}\n\n{diff_suffix}".strip() if ctx_suffix else diff_suffix
 
     result = generate_questions(
         role_category=effective.role_category,
@@ -402,6 +420,44 @@ def _generate_next_question_turn(
 
     raw = (result.response.text or "").strip()
     question_text = _normalize_question_text(raw, raw_fallback=result.response.text or "")
+    if skipped_question and question_text.strip().lower() == skipped_question.strip().lower():
+        retry_suffix = build_different_question_suffix(
+            recent_questions=get_recent_asked_questions(session_state),
+            skipped_question=skipped_question,
+            interview_focus=focus,
+            interview_round=effective.interview_round,
+            seniority=effective.seniority,
+        )
+        retry_suffix = (
+            f"{retry_suffix}\n\nCRITICAL: Your previous output repeated the skipped question. "
+            "Produce a **different** question now."
+        )
+        retry = generate_questions(
+            role_category=effective.role_category,
+            role_title=effective.role_title,
+            seniority=effective.seniority,
+            interview_round=effective.interview_round,
+            interview_focus=focus,
+            job_description=job_description or "(none)",
+            n_questions=1,
+            prompt_strategy=effective.prompt_strategy,
+            model=llm_cfg.model_preset,
+            temperature=llm_cfg.temperature,
+            top_p=llm_cfg.top_p,
+            max_tokens=llm_cfg.max_tokens,
+            response_language=effective.response_language,
+            difficulty=effective.effective_question_difficulty,
+            persona=effective.interviewer_persona,
+            session_state=session_state,
+            skip_session_rate_limit=True,
+            openai_api_key=openai_api_key,
+            mock_interview_context_suffix=retry_suffix,
+        )
+        if retry.ok and retry.response and (retry.response.text or "").strip():
+            question_text = _normalize_question_text(
+                retry.response.text or "",
+                raw_fallback=retry.response.text or "",
+            )
     display = f"{lead_in}\n\n{question_text}" if lead_in else question_text
     q_debug: LlmTurnDebug | None = None
     if result.prompt is not None:
@@ -413,6 +469,10 @@ def _generate_next_question_turn(
             top_p=llm_cfg.top_p,
             max_tokens=llm_cfg.max_tokens,
         )
+    prev_q = skipped_question or get_pending_question(session_state)
+    if prev_q and str(prev_q).strip():
+        record_asked_question(session_state, str(prev_q).strip())
+    record_asked_question(session_state, question_text)
     set_mock_state(
         session_state,
         pending_question=question_text,
@@ -552,6 +612,27 @@ def _handle_control_instruction(
             evaluation=None,
         )
 
+    if is_skip_or_next_request(last_user_content):
+        diff_suffix = build_different_question_suffix(
+            recent_questions=get_recent_asked_questions(session_state),
+            skipped_question=pending_question,
+            interview_focus=effective.interview_focus,
+            interview_round=effective.interview_round,
+            seniority=effective.seniority,
+        )
+        return _generate_next_question_turn(
+            effective,
+            messages,
+            llm_cfg,
+            session_state=session_state,
+            openai_api_key=openai_api_key,
+            lead_in="Sure — here’s a different question.",
+            interview_focus=effective.interview_focus,
+            extra_context_suffix=diff_suffix,
+            skipped_question=pending_question,
+            active_question_type="skip_or_next",
+        )
+
     override = infer_focus_override_from_message(last_user_content)
     ack_focus = override or effective.interview_focus
     ack = f"Understood — I’ll emphasize **{ack_focus}** in the next question."
@@ -564,6 +645,32 @@ def _handle_control_instruction(
         lead_in=ack,
         interview_focus=override if override is not None else effective.interview_focus,
     )
+
+
+def _handle_off_topic_turn(
+    last_user_content: str,
+    *,
+    pending_question: str,
+) -> ChatTurnResult:
+    """Brief off-topic handling without evaluation or hallucinated live data."""
+    category = classify_off_topic_category(last_user_content)
+    redirect = f"Let's return to the interview: {pending_question}"
+
+    if category == OffTopicCategory.LIVE_DATA:
+        body = (
+            "I do not have live market or real-time data access in this interview app. "
+            f"{redirect}"
+        )
+    elif category == OffTopicCategory.UNRELATED:
+        body = f"I'll keep us focused on interview practice. {redirect}"
+    else:
+        fact = brief_static_factual_answer(last_user_content)
+        if fact:
+            body = f"{fact}. Now {redirect[0].lower()}{redirect[1:]}"
+        else:
+            body = "That's outside what we cover in this mock interview. " f"{redirect}"
+
+    return ChatTurnResult(assistant_message=body, evaluation=None)
 
 
 def _interviewer_clarification_or_meta_turn(
@@ -817,6 +924,10 @@ def _evaluate_and_follow_up(
     next_pending = (
         ev.next_follow_up_question or (ev.follow_ups[0] if ev.follow_ups else "") or ""
     ).strip() or None
+
+    record_asked_question(session_state, interview_question)
+    if next_pending:
+        record_asked_question(session_state, next_pending)
 
     set_mock_state(
         session_state,

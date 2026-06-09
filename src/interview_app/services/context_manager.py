@@ -273,6 +273,58 @@ def should_use_context(
     return False
 
 
+_COMPETENCY_ROTATION: tuple[str, ...] = (
+    "architecture",
+    "reliability",
+    "evaluation",
+    "guardrails",
+    "deployment",
+    "stakeholder communication",
+    "tradeoffs",
+)
+
+
+def build_different_question_suffix(
+    *,
+    recent_questions: list[str],
+    skipped_question: str | None,
+    interview_focus: str,
+    interview_round: str,
+    seniority: str,
+) -> str:
+    """
+    Negative context for skip / next-question generation: avoid repeating recent items.
+
+    Appended to the question-generation user prompt (mock interview only).
+    """
+    avoid: list[str] = []
+    seen: set[str] = set()
+    for q in list(recent_questions) + ([skipped_question] if skipped_question else []):
+        t = (q or "").strip()
+        if not t:
+            continue
+        key = t.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        avoid.append(t)
+    if not avoid:
+        return ""
+    numbered = "\n".join(f"{i + 1}. {item}" for i, item in enumerate(avoid[-8:]))
+    rotate_idx = len(avoid) % len(_COMPETENCY_ROTATION)
+    next_angle = _COMPETENCY_ROTATION[rotate_idx]
+    return (
+        "The candidate skipped or asked for a **different** next question.\n"
+        "Do **NOT** evaluate the skipped question.\n"
+        "Recently asked questions (do NOT repeat wording, scenario, or competency):\n"
+        f"{numbered}\n\n"
+        f"Generate **one** clearly different question for a **{seniority}** candidate in "
+        f"**{interview_round}** with focus **{interview_focus}**.\n"
+        f"Prefer a fresh angle such as **{next_angle}**, and rotate away from the competencies "
+        "already covered above. Keep the question realistic for the role and round."
+    )
+
+
 def build_question_generation_context_suffix(
     user_message: str,
     session_state: MutableMapping[str, Any] | None,

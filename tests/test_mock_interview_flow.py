@@ -13,11 +13,16 @@ from interview_app.services.chat_service import run_turn
 from interview_app.services.interview_generator import GenerateQuestionsResult
 from interview_app.services.mock_interview_flow import (
     InterviewState,
+    MockInterviewTurnKind,
+    OffTopicCategory,
     UserMessageKind,
     UserTurnType,
+    classify_off_topic_category,
     classify_user_message,
+    detect_mock_interview_turn_kind,
     detect_user_turn_type,
     extract_candidate_topics,
+    is_skip_or_next_request,
     should_evaluate,
     should_run_evaluation,
     should_run_full_evaluation,
@@ -303,3 +308,162 @@ def test_restart_resets_pending_question(input_pipeline_ok: None) -> None:
         run_turn(_settings(), msgs, session_state=session)
 
     assert session.get("ia_mock_pending_question") != "Stale"
+
+
+_STAR_ANSWER = (
+    "Situation: Our API p99 latency doubled during a product launch. "
+    "Task: I owned restoring SLOs within 48 hours. "
+    "Action: I profiled hot paths, added Redis cache-aside, and rolled back a bad deploy. "
+    "Result: p99 fell 35% and error budget recovered within the sprint."
+)
+
+
+@pytest.mark.parametrize(
+    ("message", "pending"),
+    [
+        ("Skip this question.", "How would you design a rate limiter?"),
+        ("Ask me another question.", "Describe a conflict on your team."),
+        ("Next question please.", "What is your biggest achievement?"),
+        ("Skip.", "Explain database indexing."),
+    ],
+)
+def test_skip_and_next_routes_as_control_not_answer(message: str, pending: str) -> None:
+    kind = detect_mock_interview_turn_kind(message, pending)
+    turn = detect_user_turn_type(message, pending_question=pending)
+    assert kind == MockInterviewTurnKind.CONTROL_INSTRUCTION
+    assert turn == UserTurnType.CONTROL
+    assert is_skip_or_next_request(message)
+    assert (
+        should_run_full_evaluation(
+            pending_question=pending,
+            turn_type=turn,
+            interview_state=InterviewState.WAITING_FOR_ANSWER,
+            user_text=message,
+        )
+        is False
+    )
+
+
+@pytest.mark.parametrize(
+    ("message", "expected_category"),
+    [
+        ("What is the capital of France?", OffTopicCategory.STATIC_FACTUAL),
+        ("What is the Bitcoin price today?", OffTopicCategory.LIVE_DATA),
+        ("Can you give me a recipe for pasta?", OffTopicCategory.UNRELATED),
+    ],
+)
+def test_off_topic_classification(message: str, expected_category: OffTopicCategory) -> None:
+    pending = "Explain your approach to database indexing."
+    assert classify_off_topic_category(message) == expected_category
+    kind = detect_mock_interview_turn_kind(message, pending)
+    turn = detect_user_turn_type(message, pending_question=pending)
+    assert kind == MockInterviewTurnKind.OFF_TOPIC_QUESTION
+    assert turn == UserTurnType.OFF_TOPIC
+    assert (
+        should_run_full_evaluation(
+            pending_question=pending,
+            turn_type=turn,
+            interview_state=InterviewState.WAITING_FOR_ANSWER,
+            user_text=message,
+        )
+        is False
+    )
+
+
+def test_star_answer_routes_as_answer_and_evaluates() -> None:
+    pending = "Tell me about a time you improved system reliability."
+    turn = detect_user_turn_type(_STAR_ANSWER, pending_question=pending)
+    assert turn == UserTurnType.ANSWER
+    assert (
+        should_run_full_evaluation(
+            pending_question=pending,
+            turn_type=turn,
+            interview_state=InterviewState.WAITING_FOR_ANSWER,
+            user_text=_STAR_ANSWER,
+        )
+        is True
+    )
+
+
+def test_clarification_routes_without_evaluation() -> None:
+    text = "Before I answer, can you clarify if you want theory or implementation?"
+    pending = "How would you design a rate limiter?"
+    turn = detect_user_turn_type(text, pending_question=pending)
+    assert turn == UserTurnType.CLARIFICATION
+    assert (
+        should_run_full_evaluation(
+            pending_question=pending,
+            turn_type=turn,
+            interview_state=InterviewState.WAITING_FOR_ANSWER,
+            user_text=text,
+        )
+        is False
+    )
+
+
+def test_skip_generates_different_pending_question(input_pipeline_ok: None) -> None:
+    prior = "How would you design a rate limiter for our public API?"
+    next_q = "How do you validate data quality in a streaming pipeline?"
+    ok_question = GenerateQuestionsResult(
+        ok=True,
+        response=LLMResponse(
+            text=f"1. {next_q}",
+            model="gpt-4o-mini",
+            usage=None,
+            raw_response_id=None,
+        ),
+        error=None,
+        guardrails={},
+        prompt=None,
+    )
+    with patch("interview_app.services.chat_service.generate_questions", return_value=ok_question):
+        with patch("interview_app.services.chat_service.evaluate_answer") as ev:
+            session = {
+                "ia_mock_pending_question": prior,
+                "ia_mock_phase": "awaiting_answer",
+                "ia_recent_asked_questions": [prior],
+            }
+            msgs = [
+                ChatMessage(role="user", content="Hi"),
+                ChatMessage(role="assistant", content=f"Question: {prior}"),
+                ChatMessage(role="user", content="Skip this question."),
+            ]
+            out = run_turn(_settings(), msgs, session_state=session)
+
+    ev.assert_not_called()
+    assert session.get("ia_mock_pending_question") == next_q
+    assert session.get("ia_mock_pending_question") != prior
+    assert "different question" in out.assistant_message.lower()
+
+
+def test_off_topic_factual_redirects_without_evaluation(input_pipeline_ok: None) -> None:
+    pending = "Explain your approach to database indexing."
+    with patch("interview_app.services.chat_service.evaluate_answer") as ev:
+        session = {"ia_mock_pending_question": pending, "ia_mock_phase": "awaiting_answer"}
+        msgs = [
+            ChatMessage(role="user", content="Hi"),
+            ChatMessage(role="assistant", content=pending),
+            ChatMessage(role="user", content="What is the capital of France?"),
+        ]
+        out = run_turn(_settings(), msgs, session_state=session)
+
+    ev.assert_not_called()
+    assert "Paris" in out.assistant_message
+    assert pending in out.assistant_message
+    assert session.get("ia_mock_pending_question") == pending
+
+
+def test_off_topic_live_data_does_not_hallucinate(input_pipeline_ok: None) -> None:
+    pending = "Explain your approach to database indexing."
+    with patch("interview_app.services.chat_service.evaluate_answer") as ev:
+        session = {"ia_mock_pending_question": pending, "ia_mock_phase": "awaiting_answer"}
+        msgs = [
+            ChatMessage(role="user", content="Hi"),
+            ChatMessage(role="assistant", content=pending),
+            ChatMessage(role="user", content="What is the Bitcoin price today?"),
+        ]
+        out = run_turn(_settings(), msgs, session_state=session)
+
+    ev.assert_not_called()
+    assert "do not have live" in out.assistant_message.lower()
+    assert pending in out.assistant_message

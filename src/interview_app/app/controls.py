@@ -449,7 +449,8 @@ def _render_sidebar_session_list() -> None:
         sid = s.get("id", "")
         title = s.get("title", "Untitled")
         created = _format_ts(s.get("created_at", ""))
-        col_a, col_b, col_c = st.columns([2, 1, 1])
+        st.markdown('<div class="ia-saved-session-row">', unsafe_allow_html=True)
+        col_a, col_b, col_c = st.columns([2.4, 0.85, 0.85], gap="small")
         with col_a:
             st.caption(f"**{title}**")
             if created:
@@ -469,7 +470,7 @@ def _render_sidebar_session_list() -> None:
                     st.caption(f"Could not load session {sid}.")
         with col_c:
             if st.button(
-                "Del",
+                "Delete",
                 key=f"sb_del_{sid}",
                 use_container_width=True,
                 help="Delete this saved session",
@@ -480,6 +481,7 @@ def _render_sidebar_session_list() -> None:
                     st.rerun()
                 else:
                     st.warning("Could not delete this session (file missing or not removable).")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_sidebar_delete_all_sessions() -> None:

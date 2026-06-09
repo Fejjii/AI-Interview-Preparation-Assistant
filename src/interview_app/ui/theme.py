@@ -913,6 +913,26 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     background: var(--accent);
     vertical-align: 0.05em;
 }}
+[data-testid="stSidebar"] .ia-saved-session-row [data-testid="stHorizontalBlock"] {{
+    gap: 0.25rem !important;
+    align-items: center !important;
+}}
+[data-testid="stSidebar"] .ia-saved-session-row [data-testid="column"] {{
+    min-width: 0 !important;
+}}
+[data-testid="stSidebar"] .ia-saved-session-row [data-testid="stButton"] button {{
+    white-space: nowrap !important;
+    font-size: 0.72rem !important;
+    padding: 0.22rem 0.4rem !important;
+    min-height: 1.85rem !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.01em !important;
+}}
+[data-testid="stSidebar"] .st-key-sb_del_all_start button,
+[data-testid="stSidebar"] .st-key-sb_del_all_yes button,
+[data-testid="stSidebar"] .st-key-sb_del_all_no button {{
+    white-space: nowrap !important;
+}}
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {{
     font-size: 0.78rem !important;
     color: var(--st-caption) !important;

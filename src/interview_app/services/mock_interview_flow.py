@@ -19,6 +19,7 @@ KEY_MOCK_PHASE = "ia_mock_phase"
 KEY_PENDING_QUESTION = "ia_mock_pending_question"
 KEY_INTERVIEW_STATE = "ia_interview_state"
 KEY_CANDIDATE_TOPICS = "ia_candidate_topics"
+KEY_RECENT_ASKED_QUESTIONS = "ia_recent_asked_questions"
 
 
 class InterviewState(str, Enum):
@@ -42,7 +43,16 @@ class UserTurnType(str, Enum):
     EXPERIENCE = "experience"
     CONTROL = "control"
     CONTEXTUAL_QUESTION_REQUEST = "contextual_question_request"
+    OFF_TOPIC = "off_topic"
     OTHER = "other"
+
+
+class OffTopicCategory(str, Enum):
+    """Subtype for off-topic user questions during a pending interview question."""
+
+    STATIC_FACTUAL = "static_factual"
+    LIVE_DATA = "live_data"
+    UNRELATED = "unrelated"
 
 
 class MockInterviewTurnKind(str, Enum):
@@ -55,6 +65,7 @@ class MockInterviewTurnKind(str, Enum):
     PROJECT_EXPERIENCE_STATEMENT = "project_experience_statement"
     REQUEST_CONTEXTUAL_QUESTION = "request_contextual_question"
     GENERIC_QUESTION = "generic_question"
+    OFF_TOPIC_QUESTION = "off_topic_question"
     CONTROL_INSTRUCTION = "control_instruction"
     OTHER = "other"
 
@@ -310,6 +321,7 @@ def clear_mock_interview_runtime_state(session_state: MutableMapping[str, Any] |
     session_state[KEY_PENDING_QUESTION] = None
     session_state[KEY_INTERVIEW_STATE] = InterviewState.GREETING.value
     session_state[KEY_CANDIDATE_TOPICS] = []
+    session_state[KEY_RECENT_ASKED_QUESTIONS] = []
     from interview_app.services.context_manager import (
         clear_active_interview_question,
         clear_session_interview_context,
@@ -334,9 +346,46 @@ def init_mock_interview_runtime_state(session_state: MutableMapping[str, Any]) -
         else:
             session_state[KEY_INTERVIEW_STATE] = InterviewState.GREETING.value
     session_state.setdefault(KEY_CANDIDATE_TOPICS, [])
+    session_state.setdefault(KEY_RECENT_ASKED_QUESTIONS, [])
     from interview_app.services.context_manager import init_session_interview_context
 
     init_session_interview_context(session_state)
+
+
+def get_recent_asked_questions(
+    session_state: MutableMapping[str, Any] | None,
+    *,
+    cap: int = 8,
+) -> list[str]:
+    """Recently asked interview questions (newest last), for skip/next de-duplication."""
+    if not session_state:
+        return []
+    raw = session_state.get(KEY_RECENT_ASKED_QUESTIONS)
+    if not isinstance(raw, list):
+        return []
+    out = [str(x).strip() for x in raw if str(x).strip()]
+    return out[-cap:]
+
+
+def record_asked_question(
+    session_state: MutableMapping[str, Any] | None,
+    question: str,
+    *,
+    cap: int = 12,
+) -> None:
+    """Append a canonical question to recent-asked memory (bounded, de-duplicated)."""
+    if session_state is None:
+        return
+    q = (question or "").strip()
+    if not q:
+        return
+    existing = get_recent_asked_questions(session_state, cap=cap)
+    if existing and existing[-1].lower() == q.lower():
+        return
+    if any(e.lower() == q.lower() for e in existing):
+        existing = [e for e in existing if e.lower() != q.lower()]
+    existing.append(q)
+    session_state[KEY_RECENT_ASKED_QUESTIONS] = existing[-cap:]
 
 
 def get_interview_state(session_state: MutableMapping[str, Any] | None) -> InterviewState:
@@ -504,6 +553,8 @@ def _combined_greeting_ready(t: str) -> bool:
 
 
 def _is_clarification(t: str, original: str) -> bool:
+    if any(m in t for m in _UNRELATED_REQUEST_MARKERS + _LIVE_DATA_MARKERS):
+        return False
     if any(p in t for p in _CLARIFICATION_PHRASES):
         return True
     tl = (original or "").strip().lower()
@@ -545,25 +596,94 @@ def _is_meta(t: str, original: str) -> bool:
     return False
 
 
+_SKIP_NEXT_PHRASES: tuple[str, ...] = (
+    "next question",
+    "another question",
+    "different question",
+    "new question",
+    "skip this question",
+    "skip the question",
+    "skip this",
+    "skip that",
+    "move on",
+    "ask something else",
+    "ask me another question",
+    "give me another question",
+    "move to the next question",
+    "next question please",
+)
+
+_LIVE_DATA_MARKERS: tuple[str, ...] = (
+    "today",
+    "right now",
+    "current price",
+    "price today",
+    "bitcoin",
+    "btc price",
+    "stock price",
+    "weather today",
+    "latest news",
+    "live data",
+    "market data",
+    "exchange rate",
+    "crypto price",
+    "share price",
+)
+
+_UNRELATED_REQUEST_MARKERS: tuple[str, ...] = (
+    "recipe",
+    "cook pasta",
+    "cooking",
+    "movie recommendation",
+    "song lyrics",
+    "play a game",
+    "tell me a joke",
+)
+
+_STATIC_FACTUAL_MARKERS: tuple[str, ...] = (
+    "capital of",
+    "population of",
+    "who invented",
+    "when was",
+    "how many continents",
+    "what year",
+    "tallest mountain",
+    "largest country",
+)
+
+_KNOWN_STATIC_FACTUAL_ANSWERS: tuple[tuple[str, str], ...] = (
+    ("capital of france", "Paris"),
+    ("capital of germany", "Berlin"),
+    ("capital of italy", "Rome"),
+    ("capital of spain", "Madrid"),
+    ("capital of uk", "London"),
+    ("capital of united kingdom", "London"),
+)
+
+
 def _wants_fresh_question(t: str) -> bool:
     """User asks to move on / replace the current question (not an answer)."""
-    if len(t.split()) > 14:
+    if len(t.split()) > 16:
         return False
-    phrases = (
-        "next question",
-        "another question",
-        "different question",
-        "new question",
-        "skip this question",
-        "skip the question",
-        "skip this",
-        "move on",
-        "ask something else",
-    )
-    return any(p in t for p in phrases)
+    core = t.rstrip("!?.")
+    if core in ("skip", "next"):
+        return True
+    return any(p in t for p in _SKIP_NEXT_PHRASES)
+
+
+def is_skip_or_next_request(message: str) -> bool:
+    """True when the user explicitly skips or requests a different next question."""
+    t = _norm(message)
+    if not t:
+        return False
+    if infer_focus_override_from_message(message):
+        return False
+    return _wants_fresh_question(t)
 
 
 def _is_control_instruction(t: str) -> bool:
+    if _wants_fresh_question(t):
+        return True
     phrases = (
         "switch to ",
         "change to ",
@@ -573,12 +693,71 @@ def _is_control_instruction(t: str) -> bool:
         "only ask",
         "repeat the question",
         "say the question again",
-        "skip this",
-        "skip that",
         "can we switch",
         "could we switch",
     )
     return any(p in t for p in phrases)
+
+
+def classify_off_topic_category(message: str) -> OffTopicCategory | None:
+    """
+    Classify a short off-interview user question while a question is pending.
+
+    Returns None when the message is not treated as off-topic.
+    """
+    t = _norm(message)
+    if len(t.split()) > 28:
+        return None
+    if _wants_fresh_question(t):
+        return None
+    if any(m in t for m in _LIVE_DATA_MARKERS):
+        return OffTopicCategory.LIVE_DATA
+    if any(m in t for m in _UNRELATED_REQUEST_MARKERS):
+        return OffTopicCategory.UNRELATED
+    if _is_clarification(t, message) or _is_meta(t, message):
+        return None
+    question_like = "?" in (message or "") or t.startswith(
+        (
+            "what is ",
+            "what are ",
+            "how much ",
+            "who is ",
+            "where is ",
+            "when is ",
+            "can you give ",
+            "could you give ",
+        )
+    )
+    if not question_like:
+        return None
+    if any(m in t for m in _STATIC_FACTUAL_MARKERS):
+        return OffTopicCategory.STATIC_FACTUAL
+    if t.startswith("what is ") and len(t.split()) <= 10:
+        return OffTopicCategory.STATIC_FACTUAL
+    return None
+
+
+def brief_static_factual_answer(message: str) -> str | None:
+    """Safe one-line answer for well-known static facts (no live data)."""
+    t = _norm(message)
+    for needle, answer in _KNOWN_STATIC_FACTUAL_ANSWERS:
+        if needle in t:
+            return answer
+    return None
+
+
+def _looks_like_off_topic_question(
+    t: str,
+    original: str,
+    pending: str | None,
+) -> bool:
+    if not pending:
+        return False
+    if not _looks_like_general_question(original):
+        return False
+    if _pending_answer_overlap(original, pending):
+        return False
+    return classify_off_topic_category(original) is not None
 
 
 def _looks_like_experience_digression(t: str, original: str, pending: str | None) -> bool:
@@ -696,6 +875,8 @@ def _map_turn_kind_to_user_type(kind: MockInterviewTurnKind) -> UserTurnType:
         return UserTurnType.CONTROL
     if kind == MockInterviewTurnKind.REQUEST_CONTEXTUAL_QUESTION:
         return UserTurnType.CONTEXTUAL_QUESTION_REQUEST
+    if kind == MockInterviewTurnKind.OFF_TOPIC_QUESTION:
+        return UserTurnType.OFF_TOPIC
     if kind == MockInterviewTurnKind.GENERIC_QUESTION:
         return UserTurnType.OTHER
     return UserTurnType.OTHER
@@ -722,12 +903,14 @@ def detect_mock_interview_turn_kind(
         return MockInterviewTurnKind.CONTROL_INSTRUCTION
     if _user_wants_context_linked_question(t):
         return MockInterviewTurnKind.REQUEST_CONTEXTUAL_QUESTION
+    if pending_question and _wants_fresh_question(t):
+        return MockInterviewTurnKind.CONTROL_INSTRUCTION
+    if pending_question and _looks_like_off_topic_question(t, message, pending_question):
+        return MockInterviewTurnKind.OFF_TOPIC_QUESTION
     if pending_question and _is_clarification(t, message):
         return MockInterviewTurnKind.CLARIFICATION_QUESTION
     if pending_question and _is_meta(t, message):
         return MockInterviewTurnKind.META_INSTRUCTION
-    if pending_question and _wants_fresh_question(t):
-        return MockInterviewTurnKind.CONTROL_INSTRUCTION
     if not pending_question and _is_ready_or_start(t):
         return MockInterviewTurnKind.GREETING_OR_START
     if not pending_question and _is_greeting_only(t):
@@ -746,6 +929,10 @@ def detect_mock_interview_turn_kind(
         if len(t.split()) >= 12 and not _looks_like_general_question(message):
             return MockInterviewTurnKind.INTERVIEW_ANSWER
         if _looks_like_general_question(message):
+            if "?" in message and not _is_clarification(t, message):
+                off = classify_off_topic_category(message)
+                if off is not None:
+                    return MockInterviewTurnKind.OFF_TOPIC_QUESTION
             if "?" in message:
                 return MockInterviewTurnKind.CLARIFICATION_QUESTION
             return MockInterviewTurnKind.META_INSTRUCTION
@@ -895,10 +1082,13 @@ def build_interviewer_prompt(
         f"Interview round: {interview_round}. Focus: {focus}. "
         f"Role: {role_title} ({seniority}).{ctx}{pending}\n\n"
         "You are in a live mock interview. The candidate sent a clarification or meta message — "
-        "answer naturally in 2–6 short sentences. Do NOT score them. Do NOT ask a new main "
+        "answer naturally in 2–5 short sentences. Do NOT score them. Do NOT ask a new main "
         "question unless they explicitly request the next question. "
+        "If they need a concept explained, give a **brief** plain-language explanation (2–3 sentences), "
+        "then restate the pending interview question **once** at the end. "
+        "Do NOT repeat the same question wording multiple times in one reply. "
         "If they asked about interview format, explain briefly: one question at a time, brief "
-        "feedback after answers, then a follow-up. Remind them to answer the pending question when ready."
+        "feedback after answers, then a follow-up."
     )
 
 

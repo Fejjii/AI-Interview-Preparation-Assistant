@@ -42,6 +42,45 @@
       "message": "Reset the interview and start over",
       "pending_question": "Tell me about yourself.",
       "expected_turn_kind": "other"
+    },
+    {
+      "id": "skip_this_question",
+      "message": "Skip this question.",
+      "pending_question": "How would you design a rate limiter for our public API?",
+      "expected_turn_kind": "control_instruction"
+    },
+    {
+      "id": "ask_another_question",
+      "message": "Ask me another question.",
+      "pending_question": "Describe a conflict you resolved on a team.",
+      "expected_turn_kind": "control_instruction"
+    },
+    {
+      "id": "next_question_please",
+      "message": "Next question please.",
+      "pending_question": "What is your biggest technical achievement?",
+      "expected_turn_kind": "control_instruction"
+    },
+    {
+      "id": "off_topic_factual",
+      "message": "What is the capital of France?",
+      "pending_question": "Explain your approach to database indexing.",
+      "expected_turn_kind": "off_topic_question",
+      "expected_user_turn_type": "off_topic"
+    },
+    {
+      "id": "off_topic_live_data",
+      "message": "What is the Bitcoin price today?",
+      "pending_question": "Explain your approach to database indexing.",
+      "expected_turn_kind": "off_topic_question",
+      "expected_user_turn_type": "off_topic"
+    },
+    {
+      "id": "off_topic_recipe",
+      "message": "Can you give me a recipe for pasta?",
+      "pending_question": "Explain your approach to database indexing.",
+      "expected_turn_kind": "off_topic_question",
+      "expected_user_turn_type": "off_topic"
     }
   ]
 }
