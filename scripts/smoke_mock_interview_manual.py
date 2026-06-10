@@ -239,14 +239,14 @@ def main() -> int:
 
     controls = (ROOT / "src/interview_app/app/controls.py").read_text(encoding="utf-8")
     theme = (ROOT / "src/interview_app/ui/theme.py").read_text(encoding="utf-8")
-    if '"Open"' not in controls or '"Delete"' not in controls:
-        failures.append("Saved sessions buttons missing Open/Delete labels")
-    if "ia-saved-session-row" not in controls or "white-space: nowrap" not in theme:
+    if '"Open session"' not in controls or '"Delete session"' not in controls:
+        failures.append("Saved sessions buttons missing Open session/Delete session labels")
+    if "ia-saved-session-card" not in controls or "white-space: nowrap" not in theme:
         failures.append("Saved sessions nowrap CSS/layout missing")
 
     print("\n=== Saved sessions UI ===")
     print("Save/list/delete: OK")
-    print('Open + Delete labels present; ia-saved-session-row + white-space: nowrap in theme')
+    print('Open session + Delete session labels present; ia-saved-session-card + white-space: nowrap in theme')
 
     print("\n=== SUMMARY ===")
     if failures:
