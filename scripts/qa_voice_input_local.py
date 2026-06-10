@@ -67,12 +67,13 @@ def main() -> int:
         and "render_voice_input_panel" not in (ROOT / "src/interview_app/app/tabs/cv_prep_tab.py").read_text()
     )
     compact = (
-        'popover("Voice answer"' in voice_ui
+        'key="ia_voice_inline"' in voice_ui
+        and "st.popover" not in voice_ui
         and 'expander("Upload audio instead"' in voice_ui
         and "Step 1" not in voice_ui
     )
     results.append(("Voice input only in Mock Interview tab (code)", only_mock, ""))
-    results.append(("Compact voice composer near chat input (code)", compact, ""))
+    results.append(("Inline voice composer near chat input (code)", compact, ""))
 
     # 3: live transcription from uploaded WAV (uses server key from env; never logged)
     if wav.is_file():

@@ -18,8 +18,8 @@ from interview_app.app.usage_mode import (
 from interview_app.config.settings import get_settings
 from interview_app.services.chat_service import run_turn
 from interview_app.services.transcription_service import (
-    MSG_NO_AUDIO,
     MSG_UNSUPPORTED_FORMAT,
+    TranscriptionResult,
     is_supported_audio_filename,
     transcribe_audio,
 )
@@ -27,12 +27,16 @@ from interview_app.storage import sessions as sessions_mod
 from interview_app.ui.voice_input import (
     KEY_VOICE_HINT,
     KEY_VOICE_PHASE,
+    KEY_VOICE_PROCESSED_HASH,
     KEY_VOICE_TRANSCRIPT,
-    MSG_NO_AUDIO as UI_MSG_NO_AUDIO,
+    MSG_INLINE_HINT,
     clear_voice_input_state,
     clear_voice_transcript_draft,
     has_voice_audio_ready,
+    needs_auto_transcription,
     resolve_voice_audio_source,
+    run_auto_transcription_if_needed,
+    voice_audio_fingerprint,
     voice_status_line,
 )
 from interview_app.utils.types import ChatMessage, SessionMeta
@@ -80,9 +84,8 @@ def test_voice_panel_only_wired_in_mock_interview_tab() -> None:
     assert hits == ["mock_interview_tab.py"]
 
 
-def test_no_audio_selected_friendly_message_constant() -> None:
-    assert "Transcribe" in UI_MSG_NO_AUDIO
-    assert UI_MSG_NO_AUDIO == MSG_NO_AUDIO
+def test_inline_hint_is_neutral() -> None:
+    assert "Record or upload" in MSG_INLINE_HINT
 
 
 def test_resolve_voice_audio_source_prefers_recording() -> None:
@@ -109,7 +112,7 @@ def test_voice_status_line_ready_and_audio_selected() -> None:
     )
 
 
-def test_compact_voice_ui_source_has_no_step_cards() -> None:
+def test_inline_voice_ui_has_no_popover_or_step_cards() -> None:
     from pathlib import Path
 
     voice_ui = Path(__file__).resolve().parents[2] / "src/interview_app/ui/voice_input.py"
@@ -117,41 +120,105 @@ def test_compact_voice_ui_source_has_no_step_cards() -> None:
     assert "Step 1" not in text
     assert "Step 2" not in text
     assert "Step 3" not in text
+    assert "st.popover" not in text
     assert 'expander("Voice input"' not in text
+    assert 'key="ia_voice_inline"' in text
+    assert "ia-voice-inline-title" in text
 
 
-def test_compact_voice_ui_renders_popover_and_upload_fallback() -> None:
+def test_inline_voice_ui_renders_upload_fallback_and_auto_transcribe() -> None:
     from pathlib import Path
 
     voice_ui = Path(__file__).resolve().parents[2] / "src/interview_app/ui/voice_input.py"
     text = voice_ui.read_text(encoding="utf-8")
-    assert 'popover("Voice answer"' in text
     assert 'expander("Upload audio instead"' in text
-    assert "Transcribe" in text
-    assert "disabled=not audio_ready" in text
+    assert "run_auto_transcription_if_needed" in text
+    assert "needs_auto_transcription" in text
+    assert "voice_audio_fingerprint" in text
+    assert "ia_voice_transcribe_btn" not in text
 
 
-def test_clear_transcript_resets_draft_and_phase() -> None:
+def test_clear_transcript_resets_draft_phase_and_hash() -> None:
     ss: dict[str, object] = {
         KEY_VOICE_TRANSCRIPT: "draft text",
         KEY_VOICE_PHASE: "transcribed",
         KEY_VOICE_HINT: "old",
+        KEY_VOICE_PROCESSED_HASH: "abc123",
     }
     clear_voice_transcript_draft(ss)
     assert ss[KEY_VOICE_TRANSCRIPT] == ""
     assert ss[KEY_VOICE_PHASE] == "ready"
     assert KEY_VOICE_HINT not in ss
+    assert KEY_VOICE_PROCESSED_HASH not in ss
 
 
-def test_clear_voice_input_state_removes_widget_keys() -> None:
+def test_clear_voice_input_state_removes_widget_keys_and_hash() -> None:
     ss: dict[str, object] = {
         KEY_VOICE_TRANSCRIPT: "x",
+        KEY_VOICE_PROCESSED_HASH: "hash",
         "ia_voice_audio_input": b"bytes",
         "ia_voice_file_upload": object(),
     }
     clear_voice_input_state(ss)
     assert KEY_VOICE_TRANSCRIPT not in ss
+    assert KEY_VOICE_PROCESSED_HASH not in ss
     assert "ia_voice_audio_input" not in ss
+
+
+def test_voice_audio_fingerprint_is_stable() -> None:
+    first = voice_audio_fingerprint(b"audio-bytes", "answer.webm")
+    second = voice_audio_fingerprint(b"audio-bytes", "answer.webm")
+    other = voice_audio_fingerprint(b"other", "answer.webm")
+    assert first == second
+    assert first != other
+
+
+def test_needs_auto_transcription_only_for_new_audio_hash() -> None:
+    audio_hash = voice_audio_fingerprint(b"clip", "a.webm")
+    assert needs_auto_transcription({}, audio_hash) is True
+    assert needs_auto_transcription({KEY_VOICE_PROCESSED_HASH: audio_hash}, audio_hash) is False
+    assert needs_auto_transcription({KEY_VOICE_PROCESSED_HASH: audio_hash}, "other") is True
+
+
+def test_run_auto_transcription_if_needed_runs_once_per_hash() -> None:
+    ss: dict[str, object] = {KEY_USAGE_MODE: UsageMode.DEMO.value, KEY_DEMO_LLM_CALL_COUNT: 0}
+    calls: list[tuple[bytes, str]] = []
+
+    def fake_transcribe(
+        audio_bytes: bytes,
+        *,
+        filename: str,
+        openai_api_key: str | None,
+        session_state: dict[str, object],
+    ) -> TranscriptionResult:
+        calls.append((audio_bytes, filename))
+        return TranscriptionResult(ok=True, transcript="Auto draft.")
+
+    assert (
+        run_auto_transcription_if_needed(
+            ss,
+            b"clip",
+            "a.webm",
+            openai_api_key="sk-test",
+            transcribe_fn=fake_transcribe,
+        )
+        is True
+    )
+    assert ss[KEY_VOICE_TRANSCRIPT] == "Auto draft."
+    assert ss[KEY_VOICE_PROCESSED_HASH] == voice_audio_fingerprint(b"clip", "a.webm")
+    assert get_demo_usage_count(ss) == 0
+
+    assert (
+        run_auto_transcription_if_needed(
+            ss,
+            b"clip",
+            "a.webm",
+            openai_api_key="sk-test",
+            transcribe_fn=fake_transcribe,
+        )
+        is False
+    )
+    assert len(calls) == 1
 
 
 def test_unsupported_audio_format_blocked_before_api() -> None:
