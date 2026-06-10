@@ -13,7 +13,6 @@ import html
 import streamlit as st
 
 from interview_app.app.ui_settings import UISettings
-from interview_app.llm.model_settings import sidebar_label_for_preset
 
 _FONT_IMPORT = """<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -681,8 +680,8 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     border-radius: var(--radius-lg);
     padding: 1.25rem 1.5rem;
     margin-bottom: 0.25rem;
-    background: var(--card-gradient);
-    box-shadow: var(--shadow-sm);
+    background: var(--bg-card);
+    box-shadow: none;
 }}
 .ia-hero-compact {{
     padding: 0.75rem 1rem !important;
@@ -711,13 +710,51 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     font-size: 0.88rem !important;
     line-height: 1.45 !important;
 }}
+.ia-hero-with-actions {{
+    margin-bottom: 0 !important;
+}}
+.ia-header-theme-slot {{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 2.5rem;
+    padding-top: 0.15rem;
+}}
+[data-testid="stMain"] .st-key-ia_header_dark_toggle {{
+    margin-top: 0 !important;
+}}
+[data-testid="stMain"] .st-key-ia_header_dark_toggle [data-testid="stWidgetLabel"] p {{
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    color: var(--text-secondary) !important;
+}}
+[data-testid="stMain"] .st-key-ia_header_dark_toggle label {{
+    gap: 0.35rem !important;
+}}
+.ia-sidebar-brand {{
+    margin: 0 0 0.15rem 0;
+    padding: 0;
+}}
+.ia-sidebar-brand-title {{
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
+    color: var(--text-primary) !important;
+    margin: 0 0 0.2rem 0 !important;
+}}
+.ia-sidebar-brand-tagline {{
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    margin: 0 0 0.35rem 0;
+}}
 .ia-config-card {{
     background: var(--bg-card);
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     padding: 0.65rem 0.85rem 0.55rem 0.85rem;
     margin-bottom: 0.55rem;
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
 }}
 .ia-config-card-header {{
     font-size: 0.72rem;
@@ -883,9 +920,15 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     margin-bottom: 0.15rem;
 }}
 [data-testid="stMain"] .st-key-ia_voice_toggle_btn button {{
-    min-height: 2.1rem;
-    font-size: 0.82rem !important;
-    padding: 0.25rem 0.55rem !important;
+    min-height: 2rem;
+    font-size: 0.8rem !important;
+    padding: 0.2rem 0.5rem !important;
+    border-radius: 999px !important;
+}}
+[data-testid="stMain"] [data-testid="column"]:has(.st-key-ia_header_dark_toggle) {{
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
 }}
 [data-testid="stMain"] .st-key-ia_voice_mini {{
     margin-bottom: 0.35rem;
@@ -1180,11 +1223,11 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     margin-bottom: 0.35rem !important;
 }}
 .stTabs [data-baseweb="tab-list"] {{
-    background: var(--bg-secondary) !important;
+    background: var(--bg-card) !important;
     border: 1px solid var(--border-primary) !important;
     border-radius: var(--radius-md);
-    padding: 0.25rem !important;
-    gap: 0.2rem !important;
+    padding: 0.3rem !important;
+    gap: 0.25rem !important;
 }}
 .stTabs [data-baseweb="tab"] {{
     color: var(--st-tab-inactive) !important;
@@ -1284,35 +1327,18 @@ def render_configuration_pill_bar(*, settings: UISettings) -> str:
     """
     Compact recruiter-friendly setup summary (main area, top of workspace).
 
-    Shows role context by default; model sampling lives in a collapsed
-    ``<details>`` block for technical reviewers.
+    Shows role context only — no access mode or model sampling details.
     """
-    if settings.usage_mode == "byo":
-        usage_pill = "Personal API key"
-    else:
-        usage_pill = "Demo access"
-
-    role_label = (settings.role_title or "").strip() or "Set role title"
+    role_label = (settings.role_title or "").strip() or "Set target role"
     visible_pills = [
-        _pill(usage_pill),
         _pill(role_label),
         _pill(settings.seniority),
         _pill(settings.interview_round),
         _pill(settings.interview_focus),
     ]
-    technical_pills = [
-        _pill(sidebar_label_for_preset(settings.model_preset)),
-        _pill(f"Temperature · {settings.temperature:.2f}"),
-        _pill(f"Top P · {settings.top_p:.2f}"),
-        _pill(f"Max tokens · {settings.max_tokens}"),
-    ]
     return (
         '<div class="ia-config-card" aria-label="Current setup summary">'
-        '<div class="ia-config-card-header">Current Setup</div>'
+        '<div class="ia-config-card-header">Current setup</div>'
         f'<div class="ia-config-chips">{"".join(visible_pills)}</div>'
-        '<details class="ia-config-tech">'
-        "<summary>Technical settings</summary>"
-        f'<div class="ia-config-chips ia-config-chips-tech">{"".join(technical_pills)}</div>'
-        "</details>"
         "</div>"
     )

@@ -285,7 +285,7 @@ def render_voice_input_panel() -> str | None:
     _, voice_btn_col = st.columns([5, 1], gap="small", vertical_alignment="center")
     with voice_btn_col:
         if st.button(
-            "Voice",
+            "Voice answer",
             key="ia_voice_toggle_btn",
             type="secondary",
             icon=":material/mic:",
@@ -315,10 +315,10 @@ def render_voice_input_panel() -> str | None:
             st.caption(MSG_MIC_TIP.replace("**", ""))
 
         st.checkbox(
-            "Auto-send after transcription",
+            "Send automatically after transcription",
             key=KEY_VOICE_AUTO_SEND,
             value=False,
-            help="Off by default — review and edit the transcript before sending.",
+            help="Review and edit your transcript before sending.",
         )
 
         source = resolve_voice_audio_source(recorded, uploaded)

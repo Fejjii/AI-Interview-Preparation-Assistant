@@ -7,7 +7,6 @@ from interview_app.app.tabs.shared import render_section_heading, session_openai
 from interview_app.app.ui_settings import (
     PROMPT_STRATEGY_OPTIONS,
     UISettings,
-    label_for_prompt_strategy,
     prompt_strategy_key_from_label,
 )
 from interview_app.services.interview_generator import generate_questions_from_settings
@@ -34,7 +33,7 @@ def _maybe_run_pending_generation(settings: UISettings) -> None:
 
     ok_title, _ = validate_role_title(settings.role_title)
     if not ok_title:
-        st.warning("Set a **role title** in the sidebar to generate questions.")
+        st.warning("Set a **target role** in the sidebar to generate questions.")
         return
 
     jd = settings.job_description or ""
@@ -85,75 +84,42 @@ def _maybe_run_pending_generation(settings: UISettings) -> None:
         )
 
 
-def _render_question_generation_tab(settings: UISettings) -> None:
-    """Generate and display structured interview questions."""
-    render_section_heading(
-        "Interview Questions",
-        "Generate a focused set of prompts from your current sidebar configuration.",
-    )
-    st.caption(f"**Active prompt strategy:** {label_for_prompt_strategy(settings.prompt_strategy)}")
-
-    st.number_input(
-        "Number of questions",
-        min_value=1,
-        max_value=20,
-        value=int(st.session_state.get("ia_n_questions", 5)),
-        step=1,
-        help="How many distinct prompts to generate in one run.",
-        key="ia_n_questions",
-    )
-
-    _maybe_run_pending_generation(settings)
-
-    if st.button(
-        "Generate interview questions",
-        type="primary",
-        use_container_width=True,
-        key="btn_generate_questions",
-    ):
-        ok_title, _ = validate_role_title(settings.role_title)
-        if not ok_title:
-            st.warning("Set a **role title** in the sidebar.")
-        else:
-            st.session_state.ia_pending_generate = True
-            st.rerun()
-
+def _render_strategy_comparison_block(settings: UISettings) -> None:
+    """Optional A/B strategy comparison (collapsed by default on recruiter demo)."""
     _strategy_labels = [lbl for lbl, _ in PROMPT_STRATEGY_OPTIONS]
     with st.container(border=True):
-        st.markdown("### Strategy Comparison")
-        st.caption("Select strategies to compare")
+        st.caption("Compare two prompting approaches side by side.")
         sc1, sc2 = st.columns(2)
         with sc1:
             st.selectbox(
-                "Strategy A",
+                "Approach A",
                 options=_strategy_labels,
                 index=0,
                 key="ia_compare_sel_a",
             )
         with sc2:
             st.selectbox(
-                "Strategy B",
+                "Approach B",
                 options=_strategy_labels,
                 index=min(1, len(_strategy_labels) - 1),
                 key="ia_compare_sel_b",
             )
 
         if st.button(
-            "Compare Selected Strategies",
+            "Compare approaches",
             use_container_width=True,
             key="btn_compare_selected_strategies",
-            help="Compares two strategies using your current sidebar setup and number of questions.",
         ):
             ok_title, _ = validate_role_title(settings.role_title)
             if not ok_title:
-                st.warning("Set a **role title** in the sidebar.")
+                st.warning("Set a **target role** in the sidebar.")
             else:
                 la = str(st.session_state.get("ia_compare_sel_a", _strategy_labels[0]))
                 lb = str(st.session_state.get("ia_compare_sel_b", _strategy_labels[1]))
                 ka = prompt_strategy_key_from_label(la)
                 kb = prompt_strategy_key_from_label(lb)
                 if ka == kb:
-                    st.warning("Choose two **different** strategies to compare.")
+                    st.warning("Choose two **different** approaches to compare.")
                 else:
                     jd = settings.job_description or ""
                     if st.session_state.get("response_language") is None and jd.strip():
@@ -162,7 +128,7 @@ def _render_question_generation_tab(settings: UISettings) -> None:
                     nq = int(st.session_state.get("ia_n_questions", 5))
                     err_a = ""
                     err_b = ""
-                    with st.spinner("Comparing strategies…"):
+                    with st.spinner("Comparing approaches…"):
                         try:
                             gen_a = generate_questions_from_settings(
                                 settings=settings,
@@ -268,6 +234,42 @@ def _render_question_generation_tab(settings: UISettings) -> None:
                 label_a=str(pair["label_a"]),
                 label_b=str(pair["label_b"]),
             )
+
+
+def _render_question_generation_tab(settings: UISettings) -> None:
+    """Generate and display structured interview questions."""
+    render_section_heading(
+        "Interview Questions",
+        "Create role-specific practice questions from your interview profile.",
+    )
+
+    st.number_input(
+        "Number of questions",
+        min_value=1,
+        max_value=20,
+        value=int(st.session_state.get("ia_n_questions", 5)),
+        step=1,
+        help="How many questions to generate in one run.",
+        key="ia_n_questions",
+    )
+
+    _maybe_run_pending_generation(settings)
+
+    if st.button(
+        "Generate interview questions",
+        type="primary",
+        use_container_width=True,
+        key="btn_generate_questions",
+    ):
+        ok_title, _ = validate_role_title(settings.role_title)
+        if not ok_title:
+            st.warning("Set a **target role** in the sidebar.")
+        else:
+            st.session_state.ia_pending_generate = True
+            st.rerun()
+
+    with st.expander("Advanced: compare prompting approaches", expanded=False):
+        _render_strategy_comparison_block(settings)
 
     if settings.show_debug:
         nq = int(st.session_state.get("ia_n_questions", 5))

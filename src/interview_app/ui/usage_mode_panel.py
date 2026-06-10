@@ -78,8 +78,8 @@ def render_usage_mode_setup() -> None:
     """
     sb = st.sidebar
     _sidebar_usage_title(
-        "Session setup",
-        "Choose how API calls are billed for this browser session.",
+        "Getting started",
+        "Demo access or your own OpenAI API key for this session.",
     )
 
     sb.radio(

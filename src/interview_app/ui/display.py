@@ -20,6 +20,7 @@ from interview_app.cv.models import (
 )
 from interview_app.llm.model_settings import resolve_openai_model_id, sidebar_label_for_preset
 from interview_app.security.guards import GuardrailResult
+from interview_app.ui.presentation import show_technical_metadata
 from interview_app.utils.interview_question_output import try_parse_questions_json
 from interview_app.utils.types import EvaluationResult, LLMResponse
 from interview_app.utils.usage_formatting import format_usage_summary
@@ -27,6 +28,8 @@ from interview_app.utils.usage_formatting import format_usage_summary
 
 def _render_usage_caption(response: LLMResponse) -> None:
     """Compact usage line under LLM output (tokens, latency, optional estimate)."""
+    if not show_technical_metadata():
+        return
     summary = format_usage_summary(response)
     if summary:
         with st.expander("Usage", expanded=False):
@@ -51,7 +54,7 @@ def show_generated_questions_output(
 
     st.markdown("---")
     if parsed:
-        st.markdown("**Generated questions (structured JSON)**")
+        st.markdown("**Generated questions**")
         for i, item in enumerate(parsed, start=1):
             q = str(item.get("question", "")).strip()
             skill = str(item.get("skill_tested", "")).strip()
@@ -101,6 +104,9 @@ def show_generated_questions_output(
     )
 
     _render_usage_caption(response)
+
+    if not show_technical_metadata():
+        return
 
     with st.expander("Response metadata", expanded=False):
         st.code(
@@ -210,6 +216,9 @@ def show_llm_response(
         st.warning("No text returned by the model.")
 
     _render_usage_caption(response)
+
+    if not show_technical_metadata():
+        return
 
     with st.expander("Response metadata", expanded=False):
         st.code(
@@ -421,6 +430,10 @@ def show_prompt_debug(
     strategy_trace: dict[str, Any] | None = None,
 ) -> None:
     """Show the exact effective prompts sent to the model (opt-in sidebar debug)."""
+    from interview_app.ui.presentation import allow_debug_prompts
+
+    if not allow_debug_prompts():
+        return
     with st.expander("Effective prompts (debug)", expanded=False):
         if strategy_trace:
             st.markdown("**Strategy build trace (debug)**")
@@ -433,6 +446,8 @@ def show_prompt_debug(
 
 def show_settings_debug(*, settings: UISettings, extra: dict[str, Any] | None = None) -> None:
     """Show a compact snapshot of current UI settings (opt-in debug)."""
+    if not show_technical_metadata() and not settings.show_debug:
+        return
     payload: dict[str, Any] = {
         "role_category": settings.role_category,
         "role_title": settings.role_title,

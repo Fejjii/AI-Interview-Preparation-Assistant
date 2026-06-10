@@ -29,6 +29,7 @@ from interview_app.ui.display import (
     show_prompt_debug,
     show_settings_debug,
 )
+from interview_app.ui.presentation import show_technical_metadata
 from interview_app.utils.errors import safe_user_message
 from interview_app.utils.usage_formatting import format_usage_summary
 
@@ -37,15 +38,14 @@ def _render_cv_interview_tab(settings: UISettings) -> None:
     """Upload CV, run extraction + interview generation with guardrails (practice vs full prep)."""
     render_section_heading(
         "CV Interview Prep",
-        "Upload your resume (PDF or DOCX). Text is extracted and cleaned, summarized into structured "
-        "fields, then used for interview prep grounded in your CV.",
+        "Upload your resume, set a target role, and generate tailored interview preparation.",
     )
 
     uploader_key = f"cv_file_uploader_v{cvs.get_cv_workspace_version(st.session_state)}"
     uploaded = st.file_uploader(
-        "CV file",
+        "Upload CV",
         type=["pdf", "docx"],
-        help="PDF and Word (.docx) supported. Size limit is enforced server-side (default 5 MB).",
+        help="PDF or Word (.docx). Max size enforced server-side.",
         key=uploader_key,
     )
     has_uploaded_file = uploaded is not None
@@ -97,36 +97,35 @@ def _render_cv_interview_tab(settings: UISettings) -> None:
     analysis_ready = cvs.analysis_ready(st.session_state)
     cv_ver = cvs.get_cv_workspace_version(st.session_state)
 
-    st.markdown("**What do you want to run?**")
+    st.markdown("**Generate preparation**")
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        st.caption("Practice: write your own answers, then get feedback.")
+        st.caption("Practice questions to answer yourself.")
         btn_practice = st.button(
-            "Analyze CV & generate questions",
+            "Generate practice questions",
             type="primary",
             use_container_width=True,
             key="cv_btn_practice",
             disabled=not has_uploaded_file,
         )
     with col_b:
-        st.caption("Ready-made: overview, model answers, and follow-ups.")
+        st.caption("Full prep with model answers.")
         btn_full = st.button(
-            "Analyze CV & generate full prep",
+            "Generate full prep",
             use_container_width=True,
             key="cv_btn_full_prep",
             disabled=not has_uploaded_file,
         )
     with col_c:
-        st.caption("Clear everything and start over.")
         reset_cv = st.button(
-            "Reset session",
+            "Reset",
             use_container_width=True,
             key="cv_btn_reset",
-            help="Clear CV results, practice answers, evaluations, errors, and file selection.",
+            help="Clear CV results and start over.",
         )
 
     if not has_uploaded_file:
-        st.info("Upload a PDF or DOCX to enable **Analyze** actions.")
+        st.info("Upload a PDF or DOCX to get started.")
 
     if reset_cv:
         cvs.clear_cv_workspace(st.session_state)
@@ -214,7 +213,7 @@ def _render_cv_interview_tab(settings: UISettings) -> None:
             return
 
         usage_lines = [s for r in result.llm_responses if (s := format_usage_summary(r))]
-        if usage_lines:
+        if usage_lines and show_technical_metadata():
             with st.expander("LLM usage", expanded=False):
                 for i, line in enumerate(usage_lines, start=1):
                     st.caption(f"Call {i}: {line}")
@@ -344,27 +343,23 @@ def _render_cv_interview_tab(settings: UISettings) -> None:
                     },
                 )
 
-    st.markdown("---")
-    st.markdown(
-        "**Optional: regenerate without re-uploading** (uses the last successful CV analysis)."
-    )
-    regen_col1, regen_col2 = st.columns(2)
-    with regen_col1:
-        regen_practice = st.button(
-            "Regenerate practice questions",
-            use_container_width=True,
-            key="cv_btn_regen_practice",
-            disabled=not analysis_ready,
-            help="Same CV as your last successful analyze; only regenerates practice questions.",
-        )
-    with regen_col2:
-        regen_full = st.button(
-            "Regenerate full prep",
-            use_container_width=True,
-            key="cv_btn_regen_full",
-            disabled=not analysis_ready,
-            help="Same CV as your last successful analyze; only regenerates full prep content.",
-        )
+    with st.expander("Regenerate from last CV", expanded=False):
+        st.caption("Uses your last successful analysis — no need to re-upload.")
+        regen_col1, regen_col2 = st.columns(2)
+        with regen_col1:
+            regen_practice = st.button(
+                "Regenerate practice questions",
+                use_container_width=True,
+                key="cv_btn_regen_practice",
+                disabled=not analysis_ready,
+            )
+        with regen_col2:
+            regen_full = st.button(
+                "Regenerate full prep",
+                use_container_width=True,
+                key="cv_btn_regen_full",
+                disabled=not analysis_ready,
+            )
 
     if regen_practice:
         st.session_state.pop(cvs.KEY_LAST_ERROR, None)
@@ -543,14 +538,16 @@ def _render_cv_interview_tab(settings: UISettings) -> None:
                 except Exception:
                     pass
 
-            export_p = to_practice_export_dict(pb)
-            st.download_button(
-                label="Export practice questions (JSON)",
-                data=json.dumps(export_p, indent=2, ensure_ascii=False),
-                file_name="cv_practice_questions.json",
-                mime="application/json",
-                key="cv_download_practice_export",
-            )
+            with st.expander("More actions", expanded=False):
+                export_p = to_practice_export_dict(pb)
+                st.download_button(
+                    label="Export practice questions (JSON)",
+                    data=json.dumps(export_p, indent=2, ensure_ascii=False),
+                    file_name="cv_practice_questions.json",
+                    mime="application/json",
+                    key="cv_download_practice_export",
+                    use_container_width=True,
+                )
         except Exception:
             pass
 
@@ -560,13 +557,15 @@ def _render_cv_interview_tab(settings: UISettings) -> None:
             show_cv_analysis_bundle(bundle=bundle)
             export_payload = st.session_state.get(cvs.KEY_EXPORT)
             if isinstance(export_payload, dict):
-                st.download_button(
-                    label="Export questions & answers (JSON)",
-                    data=json.dumps(export_payload, indent=2, ensure_ascii=False),
-                    file_name="cv_interview_prep.json",
-                    mime="application/json",
-                    key="cv_download_export_area",
-                )
+                with st.expander("More actions", expanded=False):
+                    st.download_button(
+                        label="Export questions & answers (JSON)",
+                        data=json.dumps(export_payload, indent=2, ensure_ascii=False),
+                        file_name="cv_interview_prep.json",
+                        mime="application/json",
+                        key="cv_download_export_area",
+                        use_container_width=True,
+                    )
         except Exception:
             pass
 

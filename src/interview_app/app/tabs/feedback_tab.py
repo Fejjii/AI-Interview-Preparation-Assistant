@@ -23,7 +23,7 @@ def _render_answer_feedback_tab(settings: UISettings) -> None:
     """Paste question + answer; show structured evaluation."""
     render_section_heading(
         "Feedback / Evaluation",
-        "Evaluate a single answer against your configured role and interview context.",
+        "Paste a question and your answer to get structured feedback and improvement tips.",
     )
 
     question = question_context_input()
@@ -37,7 +37,7 @@ def _render_answer_feedback_tab(settings: UISettings) -> None:
     ):
         ok_title, _ = validate_role_title(settings.role_title)
         if not ok_title:
-            st.warning("Set a **role title** in the sidebar.")
+            st.warning("Set a **target role** in the sidebar.")
         else:
             if st.session_state.get("response_language") is None and (
                 question.strip() or answer.strip()

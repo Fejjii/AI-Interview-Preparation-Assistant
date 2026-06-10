@@ -17,6 +17,7 @@ from interview_app.config.settings import get_settings
 from interview_app.services.chat_service import LlmTurnDebug, run_turn as chat_run_turn
 from interview_app.storage.sessions import save_session
 from interview_app.ui.display import show_error, show_prompt_debug, show_settings_debug
+from interview_app.ui.presentation import show_technical_metadata
 from interview_app.ui.voice_input import render_voice_input_panel
 from interview_app.utils.errors import safe_user_message
 from interview_app.utils.language import detect_language
@@ -27,7 +28,7 @@ from interview_app.utils.mock_interview_export import (
 
 
 def _render_session_row_compact(settings: UISettings) -> None:
-    """Session status, name, save, new chat, export — compact card above chat."""
+    """Session status, name, save, and new chat — compact card above chat."""
     messages = get_messages()
     session_id = st.session_state.get("current_session_id")
     status = "Saved" if session_id else ("In progress" if messages else "New session")
@@ -38,7 +39,7 @@ def _render_session_row_compact(settings: UISettings) -> None:
             '<p class="ia-session-card-header">Session</p>',
             unsafe_allow_html=True,
         )
-        c0, c1, c2, c3, c4 = st.columns([1.15, 2.4, 0.85, 0.9, 1.0], gap="small")
+        c0, c1, c2, c3 = st.columns([1.15, 2.8, 0.95, 0.95], gap="small")
         with c0:
             st.markdown(
                 f'<p class="ia-session-status">{status}</p>',
@@ -90,24 +91,32 @@ def _render_session_row_compact(settings: UISettings) -> None:
                 st.session_state.current_session_id = None
                 st.session_state.session_meta = None
                 st.rerun()
-        with c4:
-            export_payload = build_mock_interview_export_payload(
-                settings=settings,
-                messages=messages,
-                session_title=str(st.session_state.get("session_title") or ""),
-            )
-            st.download_button(
-                label="Export JSON",
-                data=json.dumps(export_payload, indent=2, ensure_ascii=False),
-                file_name=mock_interview_export_filename(
-                    str(st.session_state.get("session_title") or "")
-                ),
-                mime="application/json",
-                key="mock_interview_export_download",
-                help="Download this mock interview as structured JSON (metadata + messages).",
-                use_container_width=True,
-                disabled=not messages,
-            )
+
+
+def _render_mock_more_actions(settings: UISettings, messages: list) -> None:
+    """Optional export and usage details — hidden from the primary session row."""
+    if not messages:
+        return
+    with st.expander("More actions", expanded=False):
+        export_payload = build_mock_interview_export_payload(
+            settings=settings,
+            messages=messages,
+            session_title=str(st.session_state.get("session_title") or ""),
+        )
+        st.download_button(
+            label="Export interview (JSON)",
+            data=json.dumps(export_payload, indent=2, ensure_ascii=False),
+            file_name=mock_interview_export_filename(
+                str(st.session_state.get("session_title") or "")
+            ),
+            mime="application/json",
+            key="mock_interview_export_download",
+            help="Download this mock interview as structured JSON.",
+            use_container_width=True,
+        )
+        usage = st.session_state.get("ia_mock_last_usage")
+        if usage and show_technical_metadata():
+            st.caption(str(usage))
 
 
 _logger = logging.getLogger(__name__)
@@ -203,15 +212,14 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
     """Primary workspace: session row + wide chat."""
     render_section_heading(
         "Mock Interview",
-        "Answer as you would live. The interviewer uses your sidebar configuration and adapts each turn.",
+        "Practice a realistic conversation. Say hello to begin — the interviewer adapts each turn.",
     )
 
     with st.expander("How to use", expanded=False):
         st.markdown(
-            '<p class="ia-instruction-hint">Say hello or that you’re ready to begin — the interviewer '
-            "opens with a short structure line and the <strong>first question</strong> immediately. "
-            "After each substantive answer you get structured feedback and a follow-up. "
-            "Adjust role and round in the sidebar anytime.</p>",
+            '<p class="ia-instruction-hint">Say hello or that you’re ready to begin. '
+            "You’ll get a brief intro and your first question. "
+            "After each answer, expect feedback and a follow-up.</p>",
             unsafe_allow_html=True,
         )
 
@@ -220,10 +228,7 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
     messages = get_messages()
     with st.container(border=True):
         if not messages:
-            st.info(
-                "Say hello or that you’re ready — the mock interviewer will start with one structure sentence "
-                "and then your **first question** (no need to ask for it explicitly)."
-            )
+            st.info("Say hello to start your mock interview.")
         else:
             for msg in messages:
                 with st.chat_message(msg.role):
@@ -234,14 +239,11 @@ def _render_mock_interview_tab(settings: UISettings) -> None:
         _handle_mock_user_message(settings, voice_transcript)
         return
 
-    if prompt := st.chat_input("Type your answer or message…"):
+    if prompt := st.chat_input("Type your answer…"):
         _handle_mock_user_message(settings, prompt)
         return
 
-    usage = st.session_state.get("ia_mock_last_usage")
-    if usage:
-        with st.expander("Usage details", expanded=False):
-            st.caption(str(usage))
+    _render_mock_more_actions(settings, messages)
 
     if settings.show_debug:
         dbg = st.session_state.get("ia_mock_last_llm_debug")

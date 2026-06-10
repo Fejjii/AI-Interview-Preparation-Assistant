@@ -2,8 +2,7 @@
 Streamlit main-area layout: header, configuration summary card, primary workspace navigation.
 
 Sidebar holds all configuration (`controls.render_sidebar_configuration`).
-Main area: hero, Current Setup card, native ``st.tabs`` workspace nav (``default`` synced
-from session ``ia_workspace_tab`` for sidebar shortcuts), then tab panels.
+Main area: hero with theme toggle, Current Setup card, native ``st.tabs`` workspace nav.
 """
 
 from __future__ import annotations
@@ -19,21 +18,38 @@ from interview_app.app.ui_settings import WORKSPACE_TAB_LABELS, UISettings
 from interview_app.ui.theme import render_configuration_pill_bar
 
 
+def render_theme_toggle() -> None:
+    """Compact light/dark control for the main header (not in sidebar)."""
+    dark = st.toggle(
+        "Dark mode",
+        value=st.session_state.get("dark_mode", False),
+        key="ia_header_dark_toggle",
+        help="Switch appearance",
+    )
+    if dark != st.session_state.get("dark_mode", False):
+        st.session_state.dark_mode = dark
+        st.rerun()
+
+
 def render_hero_header() -> None:
-    """Compact page title and subtitle."""
-    st.markdown(
-        """
-<div class="ia-hero ia-hero-compact" aria-label="Application header">
+    """Page title, subtitle, and theme toggle in a compact SaaS-style header."""
+    title_col, theme_col = st.columns([6, 1], gap="small", vertical_alignment="center")
+    with title_col:
+        st.markdown(
+            """
+<div class="ia-hero ia-hero-compact ia-hero-with-actions" aria-label="Application header">
   <h1 class="ia-hero-title">AI Interview Preparation Assistant</h1>
-  <p class="ia-hero-subtitle">Practice interviews tailored to your role, level, and stage—then review feedback and generated questions in one workspace.</p>
+  <p class="ia-hero-subtitle">Practice realistic interviews, generate role-specific questions, and improve your answers with AI feedback.</p>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
+    with theme_col:
+        render_theme_toggle()
 
 
 def render_configuration_summary_bar(settings: UISettings) -> None:
-    """Compact read-only strip of active setup (recruiter-friendly, technical details collapsed)."""
+    """Compact read-only strip of active setup (recruiter-friendly)."""
     st.markdown(
         render_configuration_pill_bar(settings=settings),
         unsafe_allow_html=True,
