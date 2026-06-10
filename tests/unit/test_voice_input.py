@@ -28,13 +28,14 @@ from interview_app.ui.voice_input import (
     KEY_VOICE_HINT,
     KEY_VOICE_PHASE,
     KEY_VOICE_PROCESSED_HASH,
+    KEY_VOICE_STATUS,
     KEY_VOICE_TRANSCRIPT,
-    MSG_INLINE_HINT,
     clear_voice_input_state,
     clear_voice_transcript_draft,
     has_voice_audio_ready,
     needs_auto_transcription,
     resolve_voice_audio_source,
+    resolve_voice_display_status,
     run_auto_transcription_if_needed,
     voice_audio_fingerprint,
     voice_status_line,
@@ -84,10 +85,6 @@ def test_voice_panel_only_wired_in_mock_interview_tab() -> None:
     assert hits == ["mock_interview_tab.py"]
 
 
-def test_inline_hint_is_neutral() -> None:
-    assert "Record or upload" in MSG_INLINE_HINT
-
-
 def test_resolve_voice_audio_source_prefers_recording() -> None:
     recorded = _upload("rec.webm", b"rec")
     uploaded = _upload("up.wav", b"up")
@@ -112,21 +109,20 @@ def test_voice_status_line_ready_and_audio_selected() -> None:
     )
 
 
-def test_inline_voice_ui_has_no_popover_or_step_cards() -> None:
+def test_compact_voice_ui_near_composer_without_large_card() -> None:
     from pathlib import Path
 
     voice_ui = Path(__file__).resolve().parents[2] / "src/interview_app/ui/voice_input.py"
     text = voice_ui.read_text(encoding="utf-8")
     assert "Step 1" not in text
-    assert "Step 2" not in text
-    assert "Step 3" not in text
     assert "st.popover" not in text
-    assert 'expander("Voice input"' not in text
-    assert 'key="ia_voice_inline"' in text
-    assert "ia-voice-inline-title" in text
+    assert "container(border=True" not in text
+    assert 'key="ia_voice_mini"' in text
+    assert 'key="ia_voice_toggle_btn"' in text
+    assert "dict(st.session_state)" not in text
 
 
-def test_inline_voice_ui_renders_upload_fallback_and_auto_transcribe() -> None:
+def test_compact_voice_ui_renders_upload_fallback_and_auto_transcribe() -> None:
     from pathlib import Path
 
     voice_ui = Path(__file__).resolve().parents[2] / "src/interview_app/ui/voice_input.py"
@@ -135,7 +131,90 @@ def test_inline_voice_ui_renders_upload_fallback_and_auto_transcribe() -> None:
     assert "run_auto_transcription_if_needed" in text
     assert "needs_auto_transcription" in text
     assert "voice_audio_fingerprint" in text
-    assert "ia_voice_transcribe_btn" not in text
+
+
+def test_resolve_voice_display_status_never_stuck_on_transcribing() -> None:
+    audio_hash = voice_audio_fingerprint(b"clip", "a.webm")
+    ss: dict[str, object] = {
+        KEY_VOICE_PROCESSED_HASH: audio_hash,
+        KEY_VOICE_STATUS: "Transcribing…",
+    }
+    status = resolve_voice_display_status(
+        ss,
+        audio_ready=True,
+        has_transcript=False,
+        audio_hash=audio_hash,
+    )
+    assert status is None
+
+    ss[KEY_VOICE_HINT] = "Demo limit reached."
+    assert (
+        resolve_voice_display_status(
+            ss,
+            audio_ready=True,
+            has_transcript=False,
+            audio_hash=audio_hash,
+        )
+        is None
+    )
+
+    ss = {KEY_VOICE_TRANSCRIPT: "Done."}
+    assert (
+        resolve_voice_display_status(
+            ss,
+            audio_ready=True,
+            has_transcript=True,
+            audio_hash=audio_hash,
+        )
+        == "Transcript ready"
+    )
+
+
+def test_failed_transcription_replaces_transcribing_status() -> None:
+    ss: dict[str, object] = {}
+
+    def fail_fn(
+        audio_bytes: bytes,
+        *,
+        filename: str,
+        openai_api_key: str | None,
+        session_state: dict[str, object],
+    ) -> TranscriptionResult:
+        return TranscriptionResult(ok=False, error="Demo limit reached.")
+
+    run_auto_transcription_if_needed(
+        ss,
+        b"clip",
+        "a.webm",
+        openai_api_key="sk-test",
+        transcribe_fn=fail_fn,
+    )
+    assert ss[KEY_VOICE_STATUS] != "Transcribing…"
+    assert "Transcribing" not in str(ss.get(KEY_VOICE_STATUS))
+    assert ss[KEY_VOICE_HINT] == "Demo limit reached."
+
+
+def test_successful_transcription_sets_transcript_not_transcribing() -> None:
+    ss: dict[str, object] = {}
+
+    def ok_fn(
+        audio_bytes: bytes,
+        *,
+        filename: str,
+        openai_api_key: str | None,
+        session_state: dict[str, object],
+    ) -> TranscriptionResult:
+        return TranscriptionResult(ok=True, transcript="Hello there.")
+
+    run_auto_transcription_if_needed(
+        ss,
+        b"clip",
+        "a.webm",
+        openai_api_key="sk-test",
+        transcribe_fn=ok_fn,
+    )
+    assert ss[KEY_VOICE_TRANSCRIPT] == "Hello there."
+    assert ss[KEY_VOICE_STATUS] == "Transcript ready"
 
 
 def test_clear_transcript_resets_draft_phase_and_hash() -> None:
@@ -144,24 +223,28 @@ def test_clear_transcript_resets_draft_phase_and_hash() -> None:
         KEY_VOICE_PHASE: "transcribed",
         KEY_VOICE_HINT: "old",
         KEY_VOICE_PROCESSED_HASH: "abc123",
+        KEY_VOICE_STATUS: "Transcribing…",
     }
     clear_voice_transcript_draft(ss)
     assert ss[KEY_VOICE_TRANSCRIPT] == ""
     assert ss[KEY_VOICE_PHASE] == "ready"
     assert KEY_VOICE_HINT not in ss
     assert KEY_VOICE_PROCESSED_HASH not in ss
+    assert ss[KEY_VOICE_STATUS] == "Ready"
 
 
 def test_clear_voice_input_state_removes_widget_keys_and_hash() -> None:
     ss: dict[str, object] = {
         KEY_VOICE_TRANSCRIPT: "x",
         KEY_VOICE_PROCESSED_HASH: "hash",
+        KEY_VOICE_STATUS: "Transcribing…",
         "ia_voice_audio_input": b"bytes",
         "ia_voice_file_upload": object(),
     }
     clear_voice_input_state(ss)
     assert KEY_VOICE_TRANSCRIPT not in ss
     assert KEY_VOICE_PROCESSED_HASH not in ss
+    assert KEY_VOICE_STATUS not in ss
     assert "ia_voice_audio_input" not in ss
 
 

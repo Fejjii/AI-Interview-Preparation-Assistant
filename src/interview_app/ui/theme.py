@@ -857,16 +857,16 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     margin: 0;
 }}
 .ia-voice-status {{
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    margin: 0 0 0.45rem 0;
+    margin: 0 0 0.35rem 0;
 }}
 .ia-voice-hint {{
-    font-size: 0.82rem;
-    line-height: 1.4;
-    margin: 0 0 0.45rem 0;
-    padding: 0.45rem 0.65rem;
-    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    margin: 0 0 0.35rem 0;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.45rem;
     border: 1px solid var(--border-primary);
 }}
 .ia-voice-hint-info {{
@@ -879,53 +879,51 @@ h1, h2, h3, h4 {{ color: var(--text-primary) !important; }}
     color: var(--text-secondary);
     border-color: rgba(217, 119, 6, 0.22);
 }}
-.ia-voice-inline-title {{
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 0.25rem 0;
-}}
-.ia-voice-inline-help {{
-    font-size: 0.84rem;
-    color: var(--text-secondary);
-    line-height: 1.45;
-    margin: 0 0 0.55rem 0;
-}}
-[data-testid="stMain"] .st-key-ia_voice_inline {{
-    margin-bottom: 0.5rem;
-    background: var(--bg-card);
-}}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stVerticalBlockBorderWrapper"] {{
-    border-color: var(--border-primary) !important;
-    padding: 0.75rem 0.85rem !important;
-}}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stAudioInput"] {{
+[data-testid="stMain"] .st-key-ia_voice_toggle_btn {{
     margin-bottom: 0.15rem;
 }}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stAudioInput"] > div {{
-    max-height: 5rem;
+[data-testid="stMain"] .st-key-ia_voice_toggle_btn button {{
+    min-height: 2.1rem;
+    font-size: 0.82rem !important;
+    padding: 0.25rem 0.55rem !important;
+}}
+[data-testid="stMain"] .st-key-ia_voice_mini {{
+    margin-bottom: 0.35rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 0.55rem;
+    background: var(--bg-card);
+}}
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stAudioInput"] {{
+    margin-bottom: 0.05rem;
+}}
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stAudioInput"] > div {{
+    max-height: 4.25rem;
     overflow: hidden;
 }}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stFileUploader"] {{
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stFileUploader"] {{
     padding-top: 0 !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stFileUploader"] section {{
-    padding: 0.35rem 0.45rem !important;
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stFileUploader"] section {{
+    padding: 0.3rem 0.4rem !important;
     min-height: 0 !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stFileUploaderDropzone"] {{
-    min-height: 2.75rem !important;
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stFileUploaderDropzone"] {{
+    min-height: 2.35rem !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stFileUploaderDropzone"] div {{
-    font-size: 0.78rem !important;
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stFileUploaderDropzone"] div {{
+    font-size: 0.76rem !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stTextArea"] textarea {{
-    min-height: 5.5rem !important;
-    font-size: 0.9rem !important;
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stTextArea"] textarea {{
+    min-height: 4.5rem !important;
+    font-size: 0.88rem !important;
 }}
-[data-testid="stMain"] .st-key-ia_voice_inline [data-testid="stExpander"] {{
-    margin-top: 0.1rem;
-    margin-bottom: 0.25rem;
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stExpander"] {{
+    margin-top: 0.05rem;
+    margin-bottom: 0.2rem;
+}}
+[data-testid="stMain"] .st-key-ia_voice_mini [data-testid="stCaptionContainer"] {{
+    font-size: 0.78rem;
 }}
 .ia-section-head {{
     margin: 0 0 0.75rem 0;
