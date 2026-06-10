@@ -1,127 +1,228 @@
 # Architecture
 
-This document describes how the Interview App is layered, how data flows from the UI to the LLM, and where to add new behavior without breaking separation of concerns.
+System design for the **AI Interview Preparation Assistant**—a Streamlit portfolio app with production-minded boundaries (guardrails, tests, CI) and intentional scope limits (no separate backend API or database in v1).
 
 ---
 
-## Design goals
+## 1. System overview
 
-- **Thin UI:** Streamlit modules orchestrate layout and session state; they delegate to services for anything that touches prompts, guardrails, or the OpenAI API.
-- **Single guardrail path:** All user-visible and file-derived text that reaches the model should pass through `security/pipeline.py` (or the same checks via `run_guardrails` where a slimmer path is intentional and tested).
-- **Inspectable prompts:** Prompt composition lives in `prompts/` and `cv/prompt_builders.py`, not embedded in ad hoc strings inside the UI.
+The app helps candidates practice interviews through four workspace tabs: **Mock Interview**, **Interview Questions**, **CV Interview Prep**, and **Feedback / Evaluation**. A sidebar configures role, seniority, model, prompt strategy, and usage mode (Demo vs BYO OpenAI key).
+
+```mermaid
+flowchart TB
+    User([User])
+
+    subgraph UI["Streamlit UI — app/ + ui/"]
+        Entry[streamlit_app.py → main.run]
+        Controls[controls.py → UISettings]
+        Layout[layout.py → tabs]
+        Theme[theme.py]
+    end
+
+    subgraph Services["Services — services/"]
+        Chat[chat_service]
+        Gen[interview_generator]
+        Eval[answer_evaluator]
+        CV[cv_interview_service]
+        Trans[transcription_service]
+        Flow[mock_interview_flow]
+    end
+
+    subgraph Boundaries["Boundaries"]
+        Prompts[prompts/ + cv/prompt_builders]
+        Sec[security/pipeline]
+        LLM[llm/openai_client]
+        Store[storage/sessions]
+    end
+
+    User --> UI
+    Layout --> Services
+    Services --> Sec
+    Sec --> LLM
+    LLM --> OpenAI[(OpenAI API)]
+    Trans --> LLM
+    Chat --> Flow
+    Chat --> Store
+    Gen & Eval & CV --> Prompts
+```
+
+**Design goals**
+
+- **Thin UI:** Streamlit orchestrates layout and `session_state`; services own prompts, guardrails, and API calls.
+- **Single guardrail path:** User and file-derived text reaches the model through `security/pipeline.py` (or equivalent tested paths).
+- **Inspectable prompts:** Composition lives in `prompts/` and `cv/prompt_builders.py`, not ad hoc UI strings.
+- **Deterministic routing:** Mock-interview turn kinds and evaluation gating live in Python, not prompt-only logic.
 
 ---
 
-## Layered structure
+## 2. Component responsibilities
 
-| Layer | Location | Responsibility |
-|-------|----------|------------------|
-| **Entry** | `streamlit_app.py` | `sys.path` for `src/`, load `.env`, invoke `app.main.run()`. |
-| **App / orchestration** | `app/` | Page config, sidebar, workspace tabs, wiring services to widgets. |
-| **UI presentation** | `ui/` | Theme CSS, reusable inputs, formatting of LLM output and errors. |
-| **Services** | `services/` | Question generation, answer evaluation, chat turns, CV pipelines. |
-| **Domain models** | `utils/types.py`, `cv/models.py` | Pydantic models shared across layers. |
-| **Prompts** | `prompts/`, `cv/prompt_builders.py` | Strategies, templates, persona strings. |
-| **LLM** | `llm/openai_client.py` | OpenAI SDK wrapper, audit logging, presets in `model_settings.py`. |
-| **Security** | `security/` | Guards, pipeline, moderation, rate limiting, output validation, logging. |
-| **Config** | `config/settings.py` | Environment-backed settings (including `SECURITY_*`). |
-| **Storage** | `storage/sessions.py` | Local JSON sessions under `SESSIONS_DIR`. |
-| **Usage mode** | `app/usage_mode.py`, `ui/usage_mode_panel.py` | Demo (server `OPENAI_API_KEY`) vs BYO (session-only user key); `openai_api_key_for_llm()` resolves which key `LLMClient` uses. |
-| **Workspace reset** | `app/session_reset.py` | Full clear of mock chat, CV workspace, comparisons, feedback widgets, BYO secrets, and usage mode keys when applying a new mode; preserves sidebar role/appearance. |
-
----
-
-## Session setup and API key resolution
-
-1. **Demo mode:** `LLMClient` uses `OPENAI_API_KEY` from settings (`.env` / environment). `openai_api_key_for_llm(session_state)` returns `None`, and services pass `api_key=None` so the client falls back to settings.
-2. **BYO mode:** After the user applies a valid key, the raw secret lives only in `st.session_state` under an internal key (`usage_mode.KEY_BYO_OPENAI_API_KEY`). `openai_api_key_for_llm` returns that string for `LLMClient(api_key=...)`. It is never serialized to saved session files or logs by design.
-3. **Apply usage mode** calls `reset_all_workspace_state` then sets the new mode and optional BYO key + display hint (`mask_api_key_for_display`).
-
-Layout and services obtain the key via `layout._session_openai_key()` (or equivalent) and thread it into `LLMClient` and `run_cv_interview_pipeline(..., openai_api_key=...)`.
+| Component | Location | Responsibility |
+|-----------|----------|----------------|
+| **Entry** | `streamlit_app.py` | Add `src/` to `sys.path`, load optional `.env`, invoke `app.main.run()` |
+| **App shell** | `app/main.py`, `layout.py`, `controls.py` | Page config, sidebar → `UISettings`, four workspace tabs |
+| **Mock interview UI** | `app/tabs/mock_interview_tab.py` | Chat, streaming display, voice panel |
+| **Voice UI** | `ui/voice_input.py` | Record/upload → auto-transcribe → edit → send |
+| **Chat / routing** | `services/chat_service.py`, `mock_interview_flow.py` | Turn classification, LLM calls, evaluation triggers |
+| **Questions** | `services/interview_generator.py` | Role-aware question generation; strategy comparison |
+| **Feedback** | `services/answer_evaluator.py` | Structured markdown feedback parsing |
+| **CV pipeline** | `services/cv_interview_service.py`, `cv/` | Upload, extract, generate, practice evaluation |
+| **Transcription** | `services/transcription_service.py` | Whisper API; size limits; demo usage counting |
+| **Security** | `security/` | Guards, pipeline, moderation, rate limit, output guard, logging |
+| **LLM client** | `llm/openai_client.py` | SDK wrapper, retries, audit metadata (no prompt bodies in logs) |
+| **Sessions** | `storage/sessions.py` | JSON files under `SESSIONS_DIR`; Demo vs BYO scoping |
+| **Usage mode** | `app/usage_mode.py`, `ui/usage_mode_panel.py` | Demo cap, BYO session key, never persist BYO secret to disk |
+| **Evaluations** | `evaluations/`, `tests/evaluations/` | Fixture-driven behavior checks without live OpenAI |
 
 ---
 
-## Request flow (simplified)
+## 3. Why Streamlit was chosen
+
+| Benefit | For this project |
+|---------|------------------|
+| **Speed to demo** | Single Python codebase, instant UI, easy Streamlit Cloud deploy |
+| **Portfolio clarity** | Reviewers see product + code in one repo without frontend boilerplate |
+| **Session state** | Natural fit for mock-interview chat and sidebar configuration |
+| **Native widgets** | Tabs, chat, file upload, `audio_input` sufficient for MVP voice |
+
+Streamlit is the right tradeoff for a **bootcamp/portfolio MVP**. It is not the long-term home for multi-tenant auth, custom mic UX, or heavy API traffic—that belongs in a dedicated backend (see Roadmap).
+
+---
+
+## 4. Why no database in this version
+
+- **Scope:** Saved mock interviews are JSON files under `data/sessions/`—enough for demo and local review.
+- **Deployment:** Streamlit Community Cloud has an ephemeral filesystem; sessions may not survive redeploys.
+- **Complexity:** Postgres/Redis would require migrations, connection management, and auth—out of scope for v1.
+- **Honesty:** The app does not claim durable multi-user storage.
+
+Session IDs are validated against path traversal; Demo and BYO scopes use separate subdirectories.
+
+---
+
+## 5. Why no LangGraph / FastAPI / vector DB in this version
+
+| Technology | Status | Reason |
+|------------|--------|--------|
+| **LangGraph** | Not used | Mock-interview FSM is small and testable in plain Python; no multi-agent graph needed |
+| **FastAPI** | Not used | No public REST API; Streamlit calls services directly |
+| **Redis** | Not used | Rate limits are in-process per Streamlit session |
+| **Postgres** | Not used | JSON file sessions for MVP |
+| **Qdrant / vector DB** | Not used | No RAG over document corpus; CV text is inlined per request |
+
+These may appear in a future backend rewrite; they are **not** part of the current implementation.
+
+---
+
+## 6. Data flow
+
+### Standard LLM request
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant ST as Streamlit UI
+    participant S as Service
+    participant P as security/pipeline
+    participant L as LLMClient
+    participant O as OpenAI
+
+    U->>ST: Submit text / action
+    ST->>S: Call with UISettings + session_state
+    S->>P: run_input_pipeline
+    alt blocked
+        P-->>ST: GuardrailResult / error
+    else ok
+        P->>L: generate_response / stream
+        L->>O: API call
+        O-->>L: completion
+        L->>P: run_output_pipeline
+        P-->>ST: Safe text + usage metadata
+    end
+```
+
+### Mock interview turn routing
+
+1. User message arrives with optional pending question.
+2. `detect_mock_interview_turn_kind` / `detect_user_turn_type` classify the turn.
+3. **Control / clarification / meta / off-topic:** conversational LLM path; **no** answer evaluation.
+4. **Substantive answer** with pending question: `evaluate_answer` produces scored feedback and follow-up.
+5. Usage metadata and optional session JSON updated.
+
+### CV pipeline
+
+1. Validate file size → extract text → sanitize delimiters.
+2. LLM call #1: structured `CVStructuredExtraction` (JSON).
+3. LLM call #2: full prep or practice questions (JSON).
+4. Optional practice evaluation batch.
+
+---
+
+## 7. Security flow
+
+```mermaid
+flowchart TD
+    IN[Untrusted input] --> V[validate + truncate]
+    V --> R[redact secret-like patterns]
+    R --> I[injection + exfiltration heuristics]
+    I -->|fail| B[Block + log event]
+    I -->|pass| M[moderation optional]
+    M --> RL[rate limit optional]
+    RL --> LLM[LLM call]
+    LLM --> OG[output guard]
+    OG --> UI[Display]
+```
+
+Secrets-exfiltration coverage includes imperative requests for `st.secrets`, `.env`, environment variables, and app configuration values. Details: [security.md](security.md).
+
+---
+
+## 8. Evaluation flow
 
 ```mermaid
 flowchart LR
-  subgraph ui [Streamlit UI]
-    A[controls / layout]
-  end
-  subgraph svc [Services]
-    B[interview_generator / answer_evaluator / chat_service / cv_interview_service]
-  end
-  subgraph sec [Security]
-    C[run_input_pipeline]
-    D[LLM call]
-    E[run_output_pipeline]
-  end
-  A --> B
-  B --> C
-  C --> D
-  D --> E
-  E --> A
+    F[evaluations/fixtures/*.json] --> C[evaluations/checks.py]
+    C --> T[tests/evaluations/]
+    T --> P[Production parsers & classifiers]
+    P --> A[Assert shape / routing / verdict]
 ```
 
-1. User action in the UI triggers a service function with parameters derived from `UISettings` and widgets.
-2. **Pre-LLM:** `run_input_pipeline` runs validation, sanitization, moderation, and (when enabled) rate limiting.
-3. **LLM:** `LLMClient.generate_response` performs the API call and structured audit logging (no prompt bodies in logs).
-4. **Post-LLM:** `run_output_pipeline` validates length and optional JSON expectations.
+Evaluations use **mocked LLM output only**. CI runs them on every push without `OPENAI_API_KEY`.
 
 ---
 
-## Module map (selected)
+## 9. Deployment flow
 
-| Path | Role |
-|------|------|
-| `app/main.py` | Composition root: theme, sidebar, main content. |
-| `app/layout.py` | Hero, configuration bar, workspace tabs, chat and CV panels. |
-| `app/controls.py` | Sidebar → `UISettings` (model preset, question difficulty mode, prompt strategy, generation parameters, **Show debug prompts**); saved sessions list/load (scoped). |
-| `app/usage_mode.py` | Demo vs BYO enum, key validation, mask hint, `openai_api_key_for_llm`. |
-| `ui/usage_mode_panel.py` | Session setup UI: Apply, reset, masked BYO input. |
-| `app/session_reset.py` | Full workspace reset on usage mode apply. |
-| `app/conversation_state.py` | Chat `session_state` helpers. |
-| `app/cv_session_state.py` | CV-specific `session_state`. |
-| `services/chat_service.py` | Mock interview turn routing and LLM calls. |
-| `services/interview_generator.py` | Question list generation tab. |
-| `services/answer_evaluator.py` | Feedback tab and structured evaluation parsing. |
-| `services/cv_interview_service.py` | CV upload → extraction → structured JSON → questions/practice. |
-| `security/pipeline.py` | Ordered pre/post LLM checks. |
-| `storage/sessions.py` | List/load/save/delete session JSON files safely. |
+```mermaid
+flowchart LR
+    Dev[Local dev] --> Git[GitHub main]
+    Git --> CI[GitHub Actions]
+    CI -->|pass| Cloud[Streamlit Cloud pull]
+    Cloud --> Secrets[OPENAI_API_KEY in Cloud Secrets]
+    Secrets --> Live[Public demo URL]
+```
+
+Alternative: `docker build` / `docker run` with `-e OPENAI_API_KEY=...` — see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 
-## Prompts and strategies
+## 10. Tradeoffs and future improvements
 
-- **Interview question generation:** `prompts/prompt_strategies.py` composes system and user prompts from templates in `prompts/prompt_templates.py` and selected strategy names (`zero_shot`, `few_shot`, `chain_of_thought`, `structured_output`, `role_based`). Few-shot demonstrations are focus-keyed via `prompts/few_shot_examples.py`. The sidebar **Prompt strategy** select (`app/controls.py`) maps labels to these keys on `UISettings.prompt_strategy`. `services/interview_generator.generate_questions_from_settings` centralizes wiring from `UISettings`. Structured JSON responses are parsed for display via `utils/interview_question_output.py`. The Interview Questions tab offers **Strategy Comparison**: user picks two strategies (`PROMPT_STRATEGY_OPTIONS`), runs generation twice, and views aligned results via `ui/strategy_comparison.py`; optional evaluations append to `data/strategy_comparison_evaluations.json` (`storage/strategy_comparison_evaluations.py`).
-- **Answer feedback:** `answer_evaluator.py` uses a fixed coach-style system prompt (not the five strategies above).
-- **Personas:** `prompts/personas.py` supplies interviewer voice for relevant flows.
-- **CV:** `cv/prompt_builders.py` holds CV-specific system/user strings; models in `cv/models.py`.
-
-Adding a new strategy: implement a builder returning `PromptBuildResult`, register it in `interview_generator._build_prompt`, add a row to `PROMPT_STRATEGY_OPTIONS` in `app/ui_settings.py`, and add a unit test for prompt shape (see [development.md](development.md)).
-
----
-
-## Session persistence
-
-Saved mock interviews are **files on disk** (`*.json` under `SESSIONS_DIR`), not a database. Paths are resolved relative to the process current working directory unless `SESSIONS_DIR` is absolute. Session IDs are validated to prevent path traversal (`storage/sessions.py`).
-
-**Scoped storage:** Files are written under `demo/` for Demo mode and `byo/<sha256>/` for a specific BYO key so saved-session lists do not mix scopes. Legacy flat `*.json` at the sessions root are listed only in Demo scope.
+| Current choice | Tradeoff | Future direction |
+|----------------|----------|------------------|
+| Streamlit monolith | Limited custom UX (voice, chat composer) | FastAPI + dedicated frontend or custom Streamlit components |
+| JSON sessions | No cross-device sync | Postgres + user accounts |
+| In-session rate limits | Not distributed | Redis-backed quotas |
+| Heuristic guardrails | Bypassable by novel attacks | Optional LLM classifier, WAF, auth |
+| Buffered structured outputs | Slightly higher latency on feedback tab | Stream only where UX benefits |
+| Demo cap per session | Not per authenticated user | Auth + billing integration |
 
 ---
 
-## CV interview pipeline (structured outputs)
+## Related documentation
 
-1. **Upload / extract:** `cv_interview_service.run_cv_interview_pipeline` runs file validation, text extraction, `run_input_pipeline`, then an LLM call expecting **JSON** for `CVStructuredExtraction`; output is validated with `run_output_pipeline(..., expect_json=True)` and parsed via `cv/json_utils.parse_llm_json_model`.
-2. **Generate:** Second LLM call uses either **full prep** (`CVInterviewGeneration`) or **practice** (`CVPracticeQuestionGeneration`) models depending on `generation_mode` (`full_prep` vs `practice_questions`).
-3. **Practice evaluation:** `run_cv_practice_evaluation` parses batch feedback into `CVPracticeEvaluationBatch` with the same Pydantic + guardrail pattern.
-
----
-
-## What belongs where
-
-- **UI:** Rendering, `st.session_state` keys, calling services with plain data.
-- **Services:** Guardrails + prompt assembly + `LLMClient` + parsing structured LLM output.
-- **Security:** Reusable checks; no Streamlit imports in core guard modules (pipeline accepts optional `session_state` dict for rate limiting).
-
-For deployment topology (Docker, cloud), see [DEPLOYMENT.md](DEPLOYMENT.md).
+- [security.md](security.md) — guardrails and threat model
+- [testing.md](testing.md) — pytest and CI
+- [STREAMLIT_CLOUD.md](STREAMLIT_CLOUD.md) — Cloud deployment
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Docker and other hosts
+- [development.md](development.md) — conventions for extending the codebase
